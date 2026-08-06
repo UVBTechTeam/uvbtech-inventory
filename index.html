@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>UVB Tech Inventory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#111214;
+  --panel:#1a1b1e;
+  --panel-2:#212327;
+  --line:#2c2e33;
+  --line-bright:#3a3d43;
+  --text:#e8e8e6;
+  --text-dim:#9a9b9f;
+  --text-faint:#63656b;
+  --amber:#e8a33d;
+  --amber-dim:#5c4a29;
+  --cyan:#4fd1c5;
+  --cyan-dim:#1f4744;
+  --red:#e85d4c;
+  --red-dim:#4a2620;
+  --violet:#8b7bd8;
+  --violet-dim:#332d54;
+  --radius:6px;
+  --font-display:'Barlow Condensed',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;}
+body{margin:0;padding:0;}
+#app{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  width:100%;
+}
+::selection{background:var(--amber-dim);color:var(--amber);}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 60px;}
+
+/* Header */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--line);
+  flex-wrap:wrap;gap:12px;
+}
+.brand{display:flex;align-items:baseline;gap:10px;}
+.brand-mark{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;color:var(--amber);
+  border:1px solid var(--amber-dim);background:var(--amber-dim);
+  padding:3px 7px;border-radius:3px;
+}
+.brand h1{
+  font-family:var(--font-display);font-weight:600;font-size:26px;letter-spacing:.01em;
+  margin:0;text-transform:uppercase;
+}
+.brand-sub{font-size:12px;color:var(--text-faint);font-family:var(--font-mono);}
+.header-stats{display:flex;gap:18px;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
+.header-stats b{color:var(--text);font-size:15px;font-family:var(--font-body);font-weight:700;display:block;}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.tab-btn{
+  background:none;border:none;color:var(--text-dim);font-family:var(--font-display);
+  font-size:16px;letter-spacing:.03em;text-transform:uppercase;font-weight:600;
+  padding:9px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:.15s;
+}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--amber);border-bottom-color:var(--amber);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* Controls */
+.controls-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+input,select,textarea{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  border-radius:var(--radius);padding:8px 10px;font-family:var(--font-body);font-size:13px;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--amber);}
+.search-input{flex:1;min-width:180px;}
+.chip{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+  padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;user-select:none;
+  font-family:var(--font-mono);white-space:nowrap;transition:.15s;
+}
+.chip:hover{border-color:var(--line-bright);color:var(--text);}
+.chip.active{background:var(--amber-dim);border-color:var(--amber);color:var(--amber);}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+
+button.btn{
+  font-family:var(--font-body);font-weight:600;font-size:13px;
+  border-radius:var(--radius);padding:8px 14px;cursor:pointer;border:1px solid var(--line-bright);
+  background:var(--panel-2);color:var(--text);transition:.15s;
+}
+button.btn:hover{border-color:var(--amber);color:var(--amber);}
+button.btn-primary{background:var(--amber);border-color:var(--amber);color:#1a1305;}
+button.btn-primary:hover{background:#f2ae4a;color:#1a1305;}
+button.btn-danger{border-color:var(--red-dim);color:var(--red);}
+button.btn-danger:hover{background:var(--red-dim);border-color:var(--red);}
+button.btn-ghost{background:none;border-color:transparent;color:var(--text-dim);}
+button.btn-ghost:hover{color:var(--text);background:var(--panel-2);}
+button.btn-sm{padding:5px 10px;font-size:12px;}
+button:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Table */
+.tbl-wrap{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  text-align:left;background:var(--panel);color:var(--text-faint);font-family:var(--font-mono);
+  font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:9px 10px;border-bottom:1px solid var(--line);
+}
+tbody td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tbody tr{background:var(--panel);cursor:pointer;transition:.1s;}
+tbody tr:hover{background:var(--panel-2);}
+tbody tr:last-child td{border-bottom:none;}
+.led{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:7px;box-shadow:0 0 5px currentColor;}
+.led.on{color:var(--cyan);background:var(--cyan);}
+.led.event{color:var(--amber);background:var(--amber);}
+.led.off{color:var(--red);background:var(--red);}
+.led.fixed{color:var(--violet);background:var(--violet);}
+.led.testing{color:#d8cf6a;background:#d8cf6a;}
+.item-name{font-weight:600;}
+.item-sub{font-size:11.5px;color:var(--text-faint);}
+.mono{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
+.badge{
+  font-family:var(--font-mono);font-size:10.5px;padding:2px 7px;border-radius:3px;
+  border:1px solid var(--line-bright);color:var(--text-dim);white-space:nowrap;
+}
+.empty-state{padding:50px 20px;text-align:center;color:var(--text-faint);font-family:var(--font-mono);font-size:13px;}
+
+/* Modal */
+.overlay{
+  position:fixed;inset:0;background:rgba(8,8,9,.75);display:none;align-items:center;justify-content:center;
+  z-index:100;padding:20px;backdrop-filter:blur(2px);
+}
+.overlay.active{display:flex;}
+.modal{
+  background:var(--panel);border:1px solid var(--line-bright);border-radius:8px;
+  width:100%;max-width:640px;max-height:88vh;overflow-y:auto;padding:0;
+}
+.modal-head{
+  display:flex;justify-content:space-between;align-items:center;padding:16px 20px;
+  border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2;
+}
+.modal-head h2{font-family:var(--font-display);text-transform:uppercase;font-size:20px;margin:0;font-weight:600;}
+.modal-body{padding:20px;}
+.close-x{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;line-height:1;}
+.close-x:hover{color:var(--text);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid.full{grid-template-columns:1fr;}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.field label{font-size:11px;color:var(--text-faint);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;}
+.field-span2{grid-column:1/-1;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
+
+/* Item detail */
+.detail-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px;}
+.detail-title{font-family:var(--font-display);font-size:24px;font-weight:600;text-transform:uppercase;line-height:1.1;}
+.detail-manu{color:var(--text-faint);font-size:13px;margin-top:2px;}
+.status-select{font-family:var(--font-mono);}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:14px 0;padding:14px;background:var(--panel-2);border-radius:6px;border:1px solid var(--line);}
+.detail-grid .k{font-size:10.5px;color:var(--text-faint);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em;}
+.detail-grid .v{font-size:13px;margin-top:2px;}
+.section-label{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--amber);margin:18px 0 8px;}
+.log-entry{padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+.log-entry:last-child{border-bottom:none;}
+.log-entry .when{color:var(--text-faint);font-family:var(--font-mono);font-size:11px;}
+.log-add{display:flex;gap:8px;margin-top:8px;}
+.log-add textarea{flex:1;min-height:36px;resize:vertical;}
+.qr-box{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px;background:#fff;border-radius:6px;margin-top:10px;}
+
+/* Scan tab */
+.scan-layout{display:grid;grid-template-columns:340px 1fr;gap:20px;}
+@media(max-width:760px){.scan-layout{grid-template-columns:1fr;}}
+.scan-cam-box{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#000;}
+#qr-reader{width:100%;}
+.scan-controls{display:flex;gap:8px;padding:10px;background:var(--panel);}
+.manual-scan{display:flex;gap:6px;margin-top:10px;}
+.scan-result-card{
+  border:1px solid var(--amber);background:var(--amber-dim);border-radius:8px;padding:16px;margin-bottom:16px;
+}
+.scan-feed-item{
+  display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;
+}
+.scan-feed-item:last-child{border-bottom:none;}
+.pill{padding:2px 9px;border-radius:20px;font-size:10.5px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.03em;}
+.pill.in{background:var(--cyan-dim);color:var(--cyan);}
+.pill.out{background:var(--amber-dim);color:var(--amber);}
+
+/* Planning */
+.room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+.room-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;}
+.room-card h3{font-family:var(--font-display);text-transform:uppercase;font-size:17px;margin:0 0 8px;font-weight:600;letter-spacing:.02em;}
+.room-count{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-bottom:8px;}
+.room-item-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px;border-top:1px solid var(--line);}
+.room-item-row:first-of-type{border-top:none;}
+.room-empty{color:var(--text-faint);font-size:12px;font-family:var(--font-mono);}
+.x-btn{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:14px;}
+.x-btn:hover{color:var(--red);}
+
+.toast{
+  position:fixed;bottom:20px;right:20px;background:var(--panel-2);border:1px solid var(--amber);
+  color:var(--text);padding:11px 16px;border-radius:6px;font-size:13px;z-index:200;
+  box-shadow:0 6px 20px rgba(0,0,0,.4);opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+.footer-note{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);color:var(--text-faint);font-size:11px;font-family:var(--font-mono);}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--line-bright);border-radius:5px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="wrap">
+
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-mark">UVB</span>
+        <div>
+          <h1>Tech Inventory</h1>
+          <div class="brand-sub" id="loadState">loading…</div>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div><b id="statTotal">–</b>items</div>
+        <div><b id="statAvailable">–</b>available</div>
+        <div><b id="statOnEvent">–</b>checked out</div>
+        <div><b id="statOut">–</b>out of use</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="inventory">Inventory</button>
+      <button class="tab-btn" data-tab="scan">Scan In / Out</button>
+      <button class="tab-btn" data-tab="planning">Planning</button>
+      <button class="tab-btn" data-tab="add">Add Equipment</button>
+    </div>
+
+    <!-- INVENTORY -->
+    <div class="tab-panel active" id="panel-inventory">
+      <div class="controls-row">
+        <input class="search-input" id="searchBox" type="text" placeholder="Search manufacturer, model, ID tag, scan code…">
+        <select id="roomFilter"><option value="">All storage/rooms</option></select>
+        <button class="btn" id="exportCsvBtn">Export CSV</button>
+      </div>
+      <div class="chip-row" id="categoryChips"></div>
+      <div class="chip-row" id="statusChips"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th><th>Item</th><th>Category</th><th>Status</th><th>Location / Room</th><th>Qty</th><th>Scan Code</th>
+            </tr>
+          </thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="emptyState" style="display:none;">No equipment matches those filters.</div>
+    </div>
+
+    <!-- SCAN -->
+    <div class="tab-panel" id="panel-scan">
+      <div class="scan-layout">
+        <div>
+          <div class="scan-cam-box">
+            <div id="qr-reader"></div>
+            <div class="scan-controls">
+              <button class="btn btn-primary btn-sm" id="startScanBtn">Start camera</button>
+              <button class="btn btn-sm" id="stopScanBtn" disabled>Stop</button>
+            </div>
+          </div>
+          <div class="manual-scan">
+            <input type="text" id="manualCodeInput" placeholder="Or type scan code / ID tag…">
+            <button class="btn btn-sm" id="manualCodeBtn">Look up</button>
+          </div>
+          <div class="footer-note">Camera scanning needs HTTPS and camera permission. Works with printed QR labels (Print Label in item detail) and most standard barcodes.</div>
+        </div>
+        <div>
+          <div id="scanResultZone"></div>
+          <div class="section-label">Recent scans</div>
+          <div class="tbl-wrap" id="scanFeed"><div class="empty-state">No scans yet this session.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLANNING -->
+    <div class="tab-panel" id="panel-planning">
+      <div class="controls-row">
+        <button class="btn btn-primary" id="assignEquipBtn">+ Assign equipment to a room</button>
+      </div>
+      <div class="room-grid" id="roomGrid"></div>
+    </div>
+
+    <!-- ADD -->
+    <div class="tab-panel" id="panel-add">
+      <div style="max-width:640px;">
+        <div class="form-grid" id="addForm"></div>
+        <div class="modal-actions" style="border-top:none;">
+          <button class="btn btn-primary" id="addSubmitBtn">Add to inventory</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note">Shared inventory — visible to everyone using this app. Changes save automatically.</div>
+  </div>
+</div>
+
+<div class="overlay" id="detailOverlay">
+  <div class="modal" id="detailModal"></div>
+</div>
+
+<div class="overlay" id="assignOverlay">
+  <div class="modal" id="assignModal"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ SEED DATA ============ */
+const SEED_ITEMS = [{"id": "itm-0001", "manufacturer": "Sennheiser", "model": "EM 100 G4 Handheld Microphone", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-001", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0002", "manufacturer": "Sennheiser", "model": "EM 100 G4 Handheld Microphone", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-002", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0003", "manufacturer": "Sennheiser", "model": "EM 100 G4 Bodypack Lapel w/Tie Clip", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-003", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0004", "manufacturer": "Sennheiser", "model": "EM 100 G4 Bodypack Lapel w/Tie Clip", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-004", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0005", "manufacturer": "Sennheiser", "model": "EM 100 G4 Bodypack Lapel w/Tie Clip", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-005", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0006", "manufacturer": "Sennheiser", "model": "EM 100 G4 Bodypack Lapel w/Tie Clip", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-006", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0007", "manufacturer": "Sennheiser", "model": "EM 100 G4 Receiver", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-007", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0008", "manufacturer": "Sennheiser", "model": "EM 100 G4 Receiver", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-008", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0009", "manufacturer": "Sennheiser", "model": "EM 100 G4 Receiver", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "", "scanCode": "UVB-009", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Receiver was dropped, slight damage to front panel", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0010", "manufacturer": "ASUS", "model": "V16 Intel(R) Core 5 210 H", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "UVBLTP005", "scanCode": "UVB-010", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Password: Spac3pig123", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0011", "manufacturer": "ASUS", "model": "V16 Intel(R) Core 5 210 H", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "UVBLTP006", "scanCode": "UVB-011", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Password: Spac3pig!", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0012", "manufacturer": "ASUS", "model": "V16 Intel(R) Core 5 210 H", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "UVBLTP007", "scanCode": "UVB-012", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Password: Spac3pig!", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0013", "manufacturer": "ASUS", "model": "V16 Intel(R) Core 5 210 H", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "UVBLTP008", "scanCode": "UVB-013", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Password: Spac3pig!", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0014", "manufacturer": "ASUS", "model": "V16 PSU", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-014", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0015", "manufacturer": "ASUS", "model": "V16 PSU", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-015", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0016", "manufacturer": "ASUS", "model": "V16 PSU", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-016", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0017", "manufacturer": "Apple", "model": "M4 Mac Mini", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-017", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre", "assignedRoom": "", "notes": "Password: Spac3p1g", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0018", "manufacturer": "Apple", "model": "Mac Mini Intel Processor", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-018", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Does not update further", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0019", "manufacturer": "Sennheiser", "model": "ew100 G3 Handheld Microphone", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "HH1", "scanCode": "UVB-019", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0020", "manufacturer": "Sennheiser", "model": "ew100 G3 Handheld Microphone", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "HH2", "scanCode": "UVB-020", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0021", "manufacturer": "Sennheiser", "model": "ew100 G3 Handheld Microphone", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "SPARE", "scanCode": "UVB-021", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0022", "manufacturer": "Sennheiser", "model": "ew100 G3 Handheld Microphone", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "SPARE", "scanCode": "UVB-022", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0023", "manufacturer": "Sennheiser", "model": "ew100 G3 Receiver", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "Receiver 1", "scanCode": "UVB-023", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0024", "manufacturer": "Sennheiser", "model": "ew100 G3 Receiver", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "Receiver 2", "scanCode": "UVB-024", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0025", "manufacturer": "Sennheiser", "model": "ew100 G3 Bodypack Lapel", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "LAPEL 1", "scanCode": "UVB-025", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0026", "manufacturer": "Sennheiser", "model": "ew100 G3 Bodypack Lapel", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "LAPEL 2", "scanCode": "UVB-026", "lastTested": "4/29/2026", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Dual Receiver Rack Drawers", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0027", "manufacturer": "Sennheiser", "model": "ew100 G3 Bodypack Lapel", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "LAPEL 3", "scanCode": "UVB-027", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Battery Charger Rack", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0028", "manufacturer": "Sennheiser", "model": "ew100 G3 Bodypack Lapel", "category": "Sound", "status": "Available", "condition": "Working but Physical Damage", "idTag": "LAPEL 4", "scanCode": "UVB-028", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Battery Charger Rack", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0029", "manufacturer": "Klark Teknik", "model": "DN200 Active Stereo DI Box", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-029", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0030", "manufacturer": "Klark Teknik", "model": "DN200 Active Stereo DI Box", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-030", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0031", "manufacturer": "Behringer", "model": "Ultra-DI (DI100)", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-031", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0032", "manufacturer": "Behringer", "model": "Ultra-DI (DI100)", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-032", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0033", "manufacturer": "AKG", "model": "PT470 Pocket Transmitter Lapel", "category": "Sound", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-033", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0034", "manufacturer": "AKG", "model": "PT470 Pocket Transmitter Lapel", "category": "Sound", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-034", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0035", "manufacturer": "AKG", "model": "CU400 Lapel Charging Unit", "category": "Sound", "status": "Available", "condition": "Not Used for a While", "idTag": "LOB Lapels", "scanCode": "UVB-035", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0036", "manufacturer": "AKG", "model": "ST6 Lectern Microphone", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-036", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0037", "manufacturer": "AKG", "model": "ST6 Lectern Microphone", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-037", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0038", "manufacturer": "AKG", "model": "CGN321 STS Lectern Microphone", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-038", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Button on Base", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0039", "manufacturer": "AKG", "model": "CGN321 STS Lectern Microphone", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-039", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Button on Base", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0040", "manufacturer": "Logitech", "model": "Meetup Webcam", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-040", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0041", "manufacturer": "Logitech", "model": "Meetup Webcam", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-041", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0042", "manufacturer": "Logitech", "model": "Echo Cancelling Microphone", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-042", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0043", "manufacturer": "Logitech", "model": "Echo Cancelling Microphone", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-043", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0044", "manufacturer": "Logitech", "model": "Meetup Remote", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-044", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0045", "manufacturer": "Logitech", "model": "Meetup Remote", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-045", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0046", "manufacturer": "Soundcraft", "model": "EPM8 Mixer", "category": "Sound", "status": "Available", "condition": "Needs Testing", "idTag": "", "scanCode": "UVB-046", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Recently stopped working during an event. It was tested and worked but it cannot be trusted on an event", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0047", "manufacturer": "D-Link", "model": "8-Way Switch", "category": "Network", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-047", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0048", "manufacturer": "Unknown", "model": "4-Way HDMI Distro Amplifier", "category": "Video", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-048", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0049", "manufacturer": "Unknown", "model": "SDI to HDMI 4k MiniConverter", "category": "Video", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-049", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0050", "manufacturer": "Unknown", "model": "Comfort Monitor Hide", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-050", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0051", "manufacturer": "Hisense", "model": "UHD 6 Series 43\" TV", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-051", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Used as Comfort Monitor", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0052", "manufacturer": "Pro Signal", "model": "HDMI 4K Splitter RX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-052", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0053", "manufacturer": "LabGear", "model": "70m HDMI Splitter/Extender TX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-053", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Mainly used in The Meeting Rooms", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0054", "manufacturer": "LabGear", "model": "HDMI Splitter/Extender RX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-054", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Mainly used in The Meeting Rooms", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0055", "manufacturer": "StarTech", "model": "2-Port HDMI Splitter", "category": "Video", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-055", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0056", "manufacturer": "Unknown", "model": "USB-C to 3.5mm Aux Adapter", "category": "Sound", "status": "Available", "condition": "Working Hit & Miss", "idTag": "", "scanCode": "UVB-056", "lastTested": "", "lastUsed": "", "quantity": 2, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0057", "manufacturer": "Unknown", "model": "Lightning to 3.5mm Aux Adapter", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-057", "lastTested": "", "lastUsed": "", "quantity": 2, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0058", "manufacturer": "LG", "model": "49\" TV on Wheels w/Shelf", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-058", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0059", "manufacturer": "LG", "model": "49\" TV on Wheels w/Shelf", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-059", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0060", "manufacturer": "LG", "model": "49\" TV on Wheels w/Shelf", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-060", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0061", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-061", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0062", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-062", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0063", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-063", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0064", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-064", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0065", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-065", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0066", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-066", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0067", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-067", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0068", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-068", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0069", "manufacturer": "ADJ", "model": "Element QAIP Uplighter", "category": "Lighting", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-069", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0070", "manufacturer": "Apple", "model": "iPad (9th Generation)", "category": "Misc", "status": "Available", "condition": "Working but Physical Damage", "idTag": "", "scanCode": "UVB-070", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "3.5mm Jack Port Out of Use", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0071", "manufacturer": "Contacta", "model": "Portable Hearing Loop", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-071", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0072", "manufacturer": "Unknown", "model": "Portable Hearing Loop", "category": "Sound", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-072", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Mains Powered System", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0073", "manufacturer": "Catchbox", "model": "Microphone", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-073", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0074", "manufacturer": "Catchbox", "model": "Microphone", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-074", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0075", "manufacturer": "Catchbox", "model": "Microphone", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-075", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0076", "manufacturer": "HP Laptop", "model": "UVBLTP010", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-076", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Operations Work Laptop", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0077", "manufacturer": "HP Laptop", "model": "UVBLTP011", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-077", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Operations Work Laptop", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0078", "manufacturer": "TENMA", "model": "Cable Tester", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-078", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0079", "manufacturer": "Epson", "model": "EB-992F Projector", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-079", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Meeting Room 1", "assignedRoom": "", "notes": "Permanently Installed", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0080", "manufacturer": "Unknown", "model": "HDMI Fibre Cable (On Reel)", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-080", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Length of Cable Needs Measuring", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0081", "manufacturer": "Unknown", "model": "Cable Tester", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-081", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0082", "manufacturer": "Fischer Amps", "model": "Battery Charger", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-082", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0083", "manufacturer": "Unknown", "model": "Ethercon Cable (On Reel)", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-083", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Temporarily Installed in Studio Theatre Grid", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0084", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-084", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0085", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-085", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0086", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-086", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0087", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-087", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0088", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-088", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0089", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-089", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0090", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-090", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0091", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-091", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0092", "manufacturer": "Prolyte", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-092", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0093", "manufacturer": "N/A", "model": "30cm Stage Legs", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-093", "lastTested": "", "lastUsed": "", "quantity": 36, "storageLocation": "Studio Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0094", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-094", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0095", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-095", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0096", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-096", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0097", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-097", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0098", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-098", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0099", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-099", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0100", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-100", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0101", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-101", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0102", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-102", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0103", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-103", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0104", "manufacturer": "N/A", "model": "Stage Step", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-104", "lastTested": "", "lastUsed": "", "quantity": 2, "storageLocation": "Studio Theatre Corridor/Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0105", "manufacturer": "N/A", "model": "Carpeted Stage Step", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-105", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor/Pit", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0106", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-106", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0107", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-107", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0108", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-108", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0109", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-109", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0110", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-110", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0111", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-111", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0112", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-112", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0113", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-113", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0114", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-114", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0115", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-115", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0116", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-116", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0117", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-117", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0118", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-118", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0119", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-119", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0120", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-120", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0121", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-121", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0122", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-122", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0123", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-123", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0124", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-124", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0125", "manufacturer": "MR GO", "model": "Light Box - Centrepiece", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-125", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in Individual Cardboard Boxes", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0126", "manufacturer": "MR GO", "model": "Light Box Chargers", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-126", "lastTested": "", "lastUsed": "", "quantity": 20, "storageLocation": "Cage", "assignedRoom": "", "notes": "Stored in a single Cardboard Box with a Light Box", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0127", "manufacturer": "InFocus", "model": "DLP Projector", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-127", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0128", "manufacturer": "InFocus", "model": "IN114X Projector", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-128", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0129", "manufacturer": "Epson", "model": "EB-W02 Projector", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-129", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "VGA Connection Only", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0130", "manufacturer": "InFocus", "model": "IN126ST Projector", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-130", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0131", "manufacturer": "Electro-Voice", "model": "ZLX-15P", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-131", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Library Corridor Next to Studio Theatre", "assignedRoom": "", "notes": "Stored in Flightcase", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0132", "manufacturer": "Electro-Voice", "model": "ZLX-15P", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-132", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Library Corridor Next to Studio Theatre", "assignedRoom": "", "notes": "Stored in Flightcase", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0133", "manufacturer": "Electro-Voice", "model": "ZLX-15P", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-133", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Book Rotunda Balcony", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0134", "manufacturer": "Electro-Voice", "model": "ZLX-15P", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-134", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Book Rotunda Balcony", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0135", "manufacturer": "Samson", "model": "Bluetooth Portable Speaker", "category": "Sound", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-135", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0136", "manufacturer": "Burgess", "model": "Foldable Stage", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-136", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Level 3 Stairwell", "assignedRoom": "", "notes": "224cm Wide, 183cm Deep, 40cm High", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0137", "manufacturer": "Unknown", "model": "Square Staging Block Frames", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-137", "lastTested": "", "lastUsed": "", "quantity": 12, "storageLocation": "Level 2 Stairwell", "assignedRoom": "", "notes": "75cm Wide, 75cm Deep, 51cm High", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0138", "manufacturer": "Unknown", "model": "Square Staging Block Tops", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-138", "lastTested": "", "lastUsed": "", "quantity": 12, "storageLocation": "Level 2 Stairwell", "assignedRoom": "", "notes": "75cm Wide, 75cm Deep, 51cm High", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0139", "manufacturer": "Logitech", "model": "Presentation Clicker", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "Clicker 1", "scanCode": "UVB-139", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0140", "manufacturer": "Logitech", "model": "Presentation Clicker", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "Clicker 2", "scanCode": "UVB-140", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0141", "manufacturer": "Amerteer", "model": "Presentation Clicker", "category": "Misc", "status": "Available", "condition": "Working", "idTag": "Clicker 4", "scanCode": "UVB-141", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0142", "manufacturer": "Unknown", "model": "Dancefloor", "category": "Staging", "status": "Available", "condition": "Working but Physical Damage", "idTag": "", "scanCode": "UVB-142", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Bike Storage - Lower Ground", "assignedRoom": "", "notes": "Enough panels to create 15ft by 15ft floor", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0143", "manufacturer": "Extension Lead", "model": "2-Way 5m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02059", "scanCode": "UVB-143", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0144", "manufacturer": "Extension Lead", "model": "4-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02069", "scanCode": "UVB-144", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0145", "manufacturer": "Extension Lead", "model": "4-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02056", "scanCode": "UVB-145", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0146", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02067", "scanCode": "UVB-146", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0147", "manufacturer": "Extension Lead", "model": "4-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02062", "scanCode": "UVB-147", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0148", "manufacturer": "Extension Lead", "model": "2-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02095", "scanCode": "UVB-148", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0149", "manufacturer": "Extension Lead", "model": "6-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02061", "scanCode": "UVB-149", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0150", "manufacturer": "Extension Lead", "model": "4-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02089", "scanCode": "UVB-150", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0151", "manufacturer": "Extension Lead", "model": "2-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02074", "scanCode": "UVB-151", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0152", "manufacturer": "Extension Lead", "model": "2-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02066", "scanCode": "UVB-152", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0153", "manufacturer": "Extension Lead", "model": "4-Way 5m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02076", "scanCode": "UVB-153", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0154", "manufacturer": "Extension Lead", "model": "2-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02070", "scanCode": "UVB-154", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0155", "manufacturer": "Extension Lead", "model": "2-Way 10m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02080", "scanCode": "UVB-155", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0156", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02068", "scanCode": "UVB-156", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0157", "manufacturer": "Extension Lead", "model": "6-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02086", "scanCode": "UVB-157", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0158", "manufacturer": "Extension Lead", "model": "6-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02087", "scanCode": "UVB-158", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0159", "manufacturer": "Extension Lead", "model": "6-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02077", "scanCode": "UVB-159", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0160", "manufacturer": "Extension Lead", "model": "6-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02078", "scanCode": "UVB-160", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0161", "manufacturer": "Extension Lead", "model": "6-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02090", "scanCode": "UVB-161", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0162", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02072", "scanCode": "UVB-162", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0163", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02079", "scanCode": "UVB-163", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0164", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02088", "scanCode": "UVB-164", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0165", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02082", "scanCode": "UVB-165", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0166", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02071", "scanCode": "UVB-166", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0167", "manufacturer": "Extension Lead", "model": "4-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02073", "scanCode": "UVB-167", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0168", "manufacturer": "Extension Lead", "model": "2-Way 2m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT 02081", "scanCode": "UVB-168", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0169", "manufacturer": "Pro-Signal", "model": "10m CAT 5E Cable - Grey", "category": "Network", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-169", "lastTested": "", "lastUsed": "", "quantity": 4, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0170", "manufacturer": "Pro-Signal", "model": "5m CAT 5E Cable - Grey", "category": "Network", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-170", "lastTested": "", "lastUsed": "", "quantity": 5, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0171", "manufacturer": "Unknown", "model": "5m CAT 5 Cable", "category": "Network", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-171", "lastTested": "", "lastUsed": "", "quantity": 5, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0172", "manufacturer": "Unknown", "model": "0.5m CAT 5 Cable", "category": "Network", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-172", "lastTested": "", "lastUsed": "", "quantity": 12, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0173", "manufacturer": "Unknown", "model": "1m CAT 5 Cable", "category": "Network", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-173", "lastTested": "", "lastUsed": "", "quantity": 19, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0174", "manufacturer": "Unknown", "model": "Patch CAT 5 Cable", "category": "Network", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-174", "lastTested": "", "lastUsed": "", "quantity": 14, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0175", "manufacturer": "Unknown", "model": "Assorted Lengths CAT 5 Cable", "category": "Network", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-175", "lastTested": "", "lastUsed": "", "quantity": 34, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0176", "manufacturer": "Extension Lead", "model": "4-Way 5m Extension Lead", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "BRT00069", "scanCode": "UVB-176", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0177", "manufacturer": "Pro Signal", "model": "HDMI 4K Splitter RX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-177", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0178", "manufacturer": "Pro Signal", "model": "HDMI 4K Splitter RX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-178", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0179", "manufacturer": "LabGear", "model": "HDMI Splitter/Extender RX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-179", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Mainly used in The Meeting Rooms", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0180", "manufacturer": "LabGear", "model": "HDMI Splitter/Extender RX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-180", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Mainly used in The Meeting Rooms", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0181", "manufacturer": "LabGear", "model": "HDMI Splitter/Extender RX", "category": "Video", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-181", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Mainly used in The Meeting Rooms", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0182", "manufacturer": "StarTech", "model": "2-Port HDMI Splitter", "category": "Video", "status": "Available", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-182", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0183", "manufacturer": "Unknown", "model": "HDMI Patch Cable", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-183", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0184", "manufacturer": "Unknown", "model": "HDMI Patch Cable", "category": "Cable", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-184", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0185", "manufacturer": "N/A", "model": "Red Carpet", "category": "Staging", "status": "Available", "condition": "Working but Physical Damage", "idTag": "", "scanCode": "UVB-185", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "285cm x 370cm", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0186", "manufacturer": "N/A", "model": "Red Carpet", "category": "Staging", "status": "Available", "condition": "Working", "idTag": "", "scanCode": "UVB-186", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "Approx 1m x 9/10m", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0187", "manufacturer": "LG", "model": "55\" TV", "category": "Video", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-187", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Winteringham", "assignedRoom": "Winteringham", "notes": "Permanently Installed", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0188", "manufacturer": "LG", "model": "55\" TV", "category": "Video", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-188", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Burman", "assignedRoom": "Burman", "notes": "Permanently Installed", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0189", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-189", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0190", "manufacturer": "Panasonic", "model": "Eneloop AA Batteries", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-190", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0191", "manufacturer": "Honor", "model": "Pad X7 8.7-inch Tablet, 4GB RAM + 64GB Storage", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-191", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "UVB Sales Office", "assignedRoom": "", "notes": "Clocking-In Tablet", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0192", "manufacturer": "Honor", "model": "Pad X7 8.7-inch Tablet, 4GB RAM + 64GB Storage", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-192", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Clocking-In Tablet", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0193", "manufacturer": "Honor", "model": "Pad X7 8.7-inch Tablet, 4GB RAM + 64GB Storage", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-193", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Mezzanine Kitchen", "assignedRoom": "", "notes": "Clocking-In Tablet", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0194", "manufacturer": "BlackMagic", "model": "MiniConverter SDI to HDMI 4K", "category": "Video", "status": "Fixed Install", "condition": "Not Used for a While", "idTag": "", "scanCode": "UVB-194", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Power Cable Missing", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0195", "manufacturer": "Apple", "model": "iPad (9th Generation)", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-195", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Sales Office", "assignedRoom": "", "notes": "Sales iPad", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0196", "manufacturer": "Apple", "model": "iPad (9th Generation)", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-196", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Sales Office", "assignedRoom": "", "notes": "Sales iPad", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0197", "manufacturer": "Apple", "model": "iPad (9th Generation)", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-197", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Sales Office", "assignedRoom": "", "notes": "Sales iPad", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0198", "manufacturer": "Apple", "model": "iPad (9th Generation)", "category": "Misc", "status": "Fixed Install", "condition": "Working", "idTag": "", "scanCode": "UVB-198", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Sales Office", "assignedRoom": "", "notes": "Sales iPad", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0199", "manufacturer": "Sennheiser", "model": "EM 100 G4 Handheld Microphone", "category": "Sound", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-199", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0200", "manufacturer": "Sennheiser", "model": "EM 100 G4 Receiver", "category": "Sound", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-200", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0201", "manufacturer": "Soundcraft", "model": "EPM6 Mixer", "category": "Sound", "status": "Checked Out", "condition": "Working but Physical Damage", "idTag": "", "scanCode": "UVB-201", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Missing Fader - Input 6", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0202", "manufacturer": "LG", "model": "65\" TV on Wheels", "category": "Video", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-202", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0203", "manufacturer": "LG", "model": "65\" TV on Wheels", "category": "Video", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-203", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0204", "manufacturer": "LG", "model": "65\" TV on Wheels", "category": "Video", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-204", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Cage", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0205", "manufacturer": "Samsung", "model": "75\" TV on Wheels", "category": "Video", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-205", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "A LOB Room", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0206", "manufacturer": "Samsung", "model": "90\" TV on Wheels", "category": "Video", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-206", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "LOB 101", "assignedRoom": "", "notes": "If using USB for content images & videos must be 1920px W x 1080px H. Images must be PNG and videos must be MP4", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0207", "manufacturer": "Electro-Voice", "model": "ZLX-12P", "category": "Sound", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-207", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Library Corridor Next to Studio Theatre", "assignedRoom": "", "notes": "Stored in Flightcase", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0208", "manufacturer": "Electro-Voice", "model": "ZLX-12P", "category": "Sound", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-208", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Library Corridor Next to Studio Theatre", "assignedRoom": "", "notes": "Stored in Flightcase", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0209", "manufacturer": "ASUS", "model": "V16 PSU", "category": "Cable", "status": "Checked Out", "condition": "Working", "idTag": "", "scanCode": "UVB-209", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0210", "manufacturer": "Sennheiser", "model": "EM 100 G4 Handheld Microphone", "category": "Sound", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-210", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0211", "manufacturer": "Sennheiser", "model": "ew100 G3 Receiver", "category": "Sound", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-211", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0212", "manufacturer": "Sennheiser", "model": "ew100 G3 Receiver", "category": "Sound", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-212", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0213", "manufacturer": "Pro Signal", "model": "HDMI 4K Splitter TX", "category": "Video", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-213", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0214", "manufacturer": "Contacta", "model": "Portable Hearing Loop", "category": "Sound", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-214", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "Battery Dead Due to Break Over COVID", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0215", "manufacturer": "NEC", "model": "PV800UL Projector", "category": "Video", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-215", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "LOB 101", "assignedRoom": "", "notes": "Managed by Vanti", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0216", "manufacturer": "NEC", "model": "PA550W Projector", "category": "Video", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-216", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "LOB 102", "assignedRoom": "", "notes": "Managed by Vanti", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0217", "manufacturer": "NEC", "model": "P451W Projector", "category": "Video", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-217", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "LOB 103", "assignedRoom": "", "notes": "Managed by Vanti", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0218", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-218", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0219", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-219", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0220", "manufacturer": "Revo", "model": "2m x 1m Stage Deck", "category": "Staging", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-220", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0221", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-221", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0222", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-222", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0223", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-223", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0224", "manufacturer": "Revo", "model": "Legs/Bases for Deck", "category": "Staging", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-224", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Studio Theatre Corridor", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0225", "manufacturer": "Yamaha", "model": "Analog Mixer", "category": "Sound", "status": "Out of Use", "condition": "Unusable", "idTag": "", "scanCode": "UVB-225", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}, {"id": "itm-0226", "manufacturer": "Unknown", "model": "HDMI Patch Cable", "category": "Cable", "status": "Out of Use", "condition": "Needs Testing", "idTag": "", "scanCode": "UVB-226", "lastTested": "", "lastUsed": "", "quantity": 1, "storageLocation": "Tech Office", "assignedRoom": "", "notes": "", "purchaseDate": "", "purchasePrice": "", "log": []}];
+const ROOMS = ["The House", "The Studio", "The Door", "The Meeting Rooms", "Meeting Room 1 & 2", "Meeting Room 2 & 3", "Meeting Room 1", "Meeting Room 2", "Meeting Room 3", "Winteringham", "Burman", "FOH 1", "LOB 101", "LOB 102", "LOB 103", "LOB 105", "Library Mezzanine", "Rep Mezzanine", "Rep Cafe", "SMR", "Library Terrace", "Library Secret Garden", "Feature Space", "Book Rotunda"];
+const CATEGORIES_SEED = ["Cable", "Lighting", "Misc", "Network", "Sound", "Staging", "Video"];
+const STATUS_OPTIONS = ['Available','Checked Out','Needs Testing','Out of Use','Fixed Install'];
+const CONDITION_OPTIONS = ['Working','Working but Physical Damage','Working Hit & Miss','Needs Testing','Not Used for a While','Unusable'];
+
+/* ============ FIREBASE CONFIG ============
+   Paste the config object from your Firebase project here:
+   Firebase console → Project settings → General → "Your apps" → SDK setup and configuration
+*/
+const firebaseConfig = {
+  apiKey: "AIzaSyD3d_iwmO5101-270cCtb8GxGpojPlrrsI",
+  authDomain: "uvb-tech-inventory-71ac5.firebaseapp.com",
+  databaseURL: "https://uvb-tech-inventory-71ac5-default-rtdb.firebaseio.com",
+  projectId: "uvb-tech-inventory-71ac5",
+  storageBucket: "uvb-tech-inventory-71ac5.firebasestorage.app",
+  messagingSenderId: "25318445009",
+  appId: "1:25318445009:web:b1eac7df2f649ae6ee9af0"
+};
+
+let db = null;
+let items = [];
+let meta = { rooms: ROOMS };
+let activeCategory = '';
+let activeStatus = '';
+let html5Qr = null;
+let scanFeedLog = [];
+
+/* ============ STORAGE (Firebase Realtime Database) ============ */
+function firebaseInit(){
+  if(firebaseConfig.apiKey === 'YOUR_API_KEY'){
+    document.getElementById('loadState').textContent = 'Firebase not configured yet — see comments in the code';
+    showToast('⚠ Add your Firebase config before this app can save data');
+    items = SEED_ITEMS;
+    renderFilterChips(); ensureCatDatalist(); renderInventory(); renderRooms();
+    return false;
+  }
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  return true;
+}
+
+function attachListeners(){
+  db.ref('items').on('value', snap=>{
+    const val = snap.val();
+    if(val === null){
+      items = SEED_ITEMS;
+      db.ref('items').set(items);
+    }else{
+      items = (Array.isArray(val) ? val : Object.values(val)).map(normalizeItem);
+    }
+    document.getElementById('loadState').textContent = `${items.length} items · live-synced with your team`;
+    renderFilterChips(); ensureCatDatalist(); renderInventory(); renderRooms();
+  }, err=>{
+    console.error(err);
+    document.getElementById('loadState').textContent = 'Connection error — check Firebase config & database rules';
+    showToast('⚠ Could not connect to Firebase');
+  });
+
+  db.ref('meta').on('value', snap=>{
+    const val = snap.val();
+    if(val === null){
+      meta = { rooms: ROOMS };
+      db.ref('meta').set(meta);
+    }else{
+      meta = val;
+    }
+    renderRooms();
+  });
+}
+
+function saveItems(){
+  if(!db) return;
+  db.ref('items').set(items).catch(e=>{ showToast('⚠ Save failed — check connection'); console.error(e); });
+}
+function saveMeta(){
+  if(!db) return;
+  db.ref('meta').set(meta).catch(e=> console.error(e));
+}
+
+/* ============ HELPERS ============ */
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function fmtDate(d){
+  if(!d) return '—';
+  const dt = new Date(d);
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function nowStamp(){ return new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function ledClass(status){
+  if(status==='Available') return 'on';
+  if(status==='Checked Out') return 'event';
+  if(status==='Out of Use') return 'off';
+  if(status==='Fixed Install') return 'fixed';
+  if(status==='Needs Testing') return 'testing';
+  return 'off';
+}
+function genId(){ return 'itm-' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function normalizeItem(it){
+  // Firebase Realtime Database drops empty arrays/strings on write — patch them back so nothing breaks on read.
+  return Object.assign({
+    manufacturer:'', model:'', category:'', status:'Available', condition:'',
+    idTag:'', scanCode:'', lastTested:'', lastUsed:'', quantity:1,
+    storageLocation:'', assignedRoom:'', notes:'', purchaseDate:'', purchasePrice:'', log:[]
+  }, it, { log: it.log || [] });
+}
+function addLog(item, action, note){
+  if(!item.log) item.log = [];
+  item.log.unshift({ when: new Date().toISOString(), stamp: nowStamp(), action, note: note||'' });
+}
+function findByCode(code){
+  const c = code.trim().toLowerCase();
+  if(!c) return null;
+  return items.find(it => (it.scanCode && it.scanCode.toLowerCase()===c) || (it.idTag && it.idTag.toLowerCase()===c));
+}
+function categoryList(){
+  const set = new Set(CATEGORIES_SEED);
+  items.forEach(it=> it.category && set.add(it.category));
+  return [...set].sort();
+}
+function csvEscape(v){
+  v = (v===undefined||v===null) ? '' : String(v);
+  if(/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+  return v;
+}
+
+/* ============ RENDER: STATS ============ */
+function renderStats(){
+  document.getElementById('statTotal').textContent = items.length;
+  document.getElementById('statAvailable').textContent = items.filter(i=>i.status==='Available').length;
+  document.getElementById('statOnEvent').textContent = items.filter(i=>i.status==='Checked Out').length;
+  document.getElementById('statOut').textContent = items.filter(i=>i.status==='Out of Use').length;
+}
+
+/* ============ RENDER: INVENTORY ============ */
+function renderFilterChips(){
+  const catEl = document.getElementById('categoryChips');
+  const cats = categoryList();
+  catEl.innerHTML = '<span class="chip'+(activeCategory===''?' active':'')+'" data-cat="">All categories</span>' +
+    cats.map(c=>`<span class="chip${activeCategory===c?' active':''}" data-cat="${c}">${c}</span>`).join('');
+  catEl.querySelectorAll('.chip').forEach(ch=>{
+    ch.onclick = ()=>{ activeCategory = ch.dataset.cat; renderInventory(); renderFilterChips(); };
+  });
+
+  const stEl = document.getElementById('statusChips');
+  stEl.innerHTML = '<span class="chip'+(activeStatus===''?' active':'')+'" data-st="">All statuses</span>' +
+    STATUS_OPTIONS.map(s=>`<span class="chip${activeStatus===s?' active':''}" data-st="${s}">${s}</span>`).join('');
+  stEl.querySelectorAll('.chip').forEach(ch=>{
+    ch.onclick = ()=>{ activeStatus = ch.dataset.st; renderInventory(); renderFilterChips(); };
+  });
+
+  const roomSel = document.getElementById('roomFilter');
+  const currentVal = roomSel.value;
+  const locs = new Set();
+  items.forEach(it=>{ if(it.storageLocation) locs.add(it.storageLocation); if(it.assignedRoom) locs.add(it.assignedRoom); });
+  roomSel.innerHTML = '<option value="">All storage/rooms</option>' + [...locs].sort().map(l=>`<option value="${l}">${l}</option>`).join('');
+  roomSel.value = currentVal;
+}
+
+function renderInventory(){
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  const roomF = document.getElementById('roomFilter').value;
+  const body = document.getElementById('tblBody');
+  let list = items.filter(it=>{
+    if(activeCategory && it.category!==activeCategory) return false;
+    if(activeStatus && it.status!==activeStatus) return false;
+    if(roomF && it.storageLocation!==roomF && it.assignedRoom!==roomF) return false;
+    if(q){
+      const hay = [it.manufacturer,it.model,it.idTag,it.scanCode,it.notes].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  document.getElementById('emptyState').style.display = list.length ? 'none':'block';
+  body.innerHTML = list.map(it=>{
+    const loc = it.assignedRoom ? `${it.assignedRoom} <span class="item-sub">(planned)</span>` : (it.storageLocation||'—');
+    return `<tr data-id="${it.id}">
+      <td><span class="led ${ledClass(it.status)}"></span></td>
+      <td><div class="item-name">${it.manufacturer? it.manufacturer+' — ':''}${it.model||'(unnamed)'}</div>${it.idTag?`<div class="item-sub">${it.idTag}</div>`:''}</td>
+      <td><span class="badge">${it.category||'—'}</span></td>
+      <td class="mono">${it.status}</td>
+      <td>${loc}</td>
+      <td class="mono">${it.quantity||1}</td>
+      <td class="mono">${it.scanCode || '—'}</td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('tr').forEach(tr=>{
+    tr.onclick = ()=> openDetail(tr.dataset.id);
+  });
+  renderStats();
+}
+
+/* ============ ITEM DETAIL MODAL ============ */
+function openDetail(id){
+  const it = items.find(i=>i.id===id);
+  if(!it) return;
+  const modal = document.getElementById('detailModal');
+  modal.innerHTML = `
+    <div class="modal-head">
+      <h2>Item Detail</h2>
+      <button class="close-x" id="closeDetail">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-top">
+        <div>
+          <div class="detail-title">${it.model||'(unnamed)'}</div>
+          <div class="detail-manu">${it.manufacturer||'Unknown manufacturer'} · <span class="mono">${it.scanCode || 'no code yet'}</span></div>
+        </div>
+        <select class="status-select" id="d-status"></select>
+      </div>
+
+      <div class="detail-grid">
+        <div><div class="k">Category</div><div class="v"><input id="d-category" list="catList" value="${it.category||''}"></div></div>
+        <div><div class="k">Condition</div><div class="v"><select id="d-condition"></select></div></div>
+        <div><div class="k">ID Tag</div><div class="v"><input id="d-idtag" value="${it.idTag||''}"></div></div>
+        <div><div class="k">Scan Code</div><div class="v"><input id="d-scancode" value="${it.scanCode||''}" placeholder="e.g. UVB-0123"></div></div>
+        <div><div class="k">Quantity</div><div class="v"><input id="d-qty" type="number" min="1" value="${it.quantity||1}"></div></div>
+        <div><div class="k">Storage Location</div><div class="v"><input id="d-storage" value="${it.storageLocation||''}"></div></div>
+        <div><div class="k">Assigned Room (planning)</div><div class="v"><select id="d-room"></select></div></div>
+        <div><div class="k">Last Tested</div><div class="v"><input id="d-tested" type="date" value="${it.lastTested? isoDate(it.lastTested):''}"></div></div>
+        <div><div class="k">Last Used</div><div class="v"><input id="d-used" type="date" value="${it.lastUsed? isoDate(it.lastUsed):''}"></div></div>
+        <div><div class="k">Purchase Date</div><div class="v"><input id="d-pdate" value="${it.purchaseDate||''}" placeholder="e.g. 03/2024"></div></div>
+        <div><div class="k">Purchase Price</div><div class="v"><input id="d-price" value="${it.purchasePrice||''}" placeholder="£"></div></div>
+      </div>
+
+      <div class="field field-span2">
+        <label>Notes</label>
+        <textarea id="d-notes" rows="2">${it.notes||''}</textarea>
+      </div>
+
+      <div class="section-label">Scan code &amp; label</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-sm" id="printLabelBtn" ${it.scanCode?'':'disabled'}>Print QR label${it.scanCode? ' ('+it.scanCode+')':''}</button>
+      </div>
+      ${it.scanCode? '' : '<div class="item-sub" style="margin-top:6px;">Add a scan code above, hit Save, then come back to print a label for it.</div>'}
+
+      <div class="section-label">Activity log</div>
+      <div class="log-add">
+        <textarea id="logNote" placeholder="Add a note to this item's history…"></textarea>
+        <button class="btn btn-sm" id="addLogBtn">Add</button>
+      </div>
+      <div id="logList" style="margin-top:8px;">
+        ${(it.log&&it.log.length)? it.log.map(l=>`<div class="log-entry"><div class="when">${l.stamp}${l.action?` · <b>${l.action}</b>`:''}</div>${l.note?`<div>${l.note}</div>`:''}</div>`).join('') : '<div class="room-empty">No history yet.</div>'}
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-danger" id="deleteItemBtn">Remove from inventory</button>
+        <button class="btn btn-primary" id="saveItemBtn">Save changes</button>
+      </div>
+    </div>
+  `;
+  fillSelect(document.getElementById('d-status'), STATUS_OPTIONS, it.status);
+  fillSelect(document.getElementById('d-condition'), CONDITION_OPTIONS, it.condition);
+  fillSelect(document.getElementById('d-room'), ['— none —', ...meta.rooms], it.assignedRoom || '— none —');
+
+  document.getElementById('closeDetail').onclick = ()=> closeOverlay('detailOverlay');
+  document.getElementById('saveItemBtn').onclick = ()=>{
+    it.category = document.getElementById('d-category').value.trim();
+    it.condition = document.getElementById('d-condition').value;
+    it.status = document.getElementById('d-status').value;
+    it.idTag = document.getElementById('d-idtag').value.trim();
+    it.scanCode = document.getElementById('d-scancode').value.trim();
+    it.quantity = parseInt(document.getElementById('d-qty').value)||1;
+    it.storageLocation = document.getElementById('d-storage').value.trim();
+    const roomVal = document.getElementById('d-room').value;
+    it.assignedRoom = roomVal==='— none —' ? '' : roomVal;
+    it.lastTested = document.getElementById('d-tested').value;
+    it.lastUsed = document.getElementById('d-used').value;
+    it.purchaseDate = document.getElementById('d-pdate').value.trim();
+    it.purchasePrice = document.getElementById('d-price').value.trim();
+    it.notes = document.getElementById('d-notes').value.trim();
+    addLog(it, 'Updated details', '');
+    saveItems();
+    renderFilterChips(); renderInventory(); renderRooms();
+    showToast('Saved ' + (it.model||'item'));
+    closeOverlay('detailOverlay');
+  };
+  document.getElementById('deleteItemBtn').onclick = ()=>{
+    if(confirm(`Remove "${it.model}" from inventory? This can't be undone.`)){
+      items = items.filter(i=>i.id!==it.id);
+      saveItems();
+      renderFilterChips(); renderInventory(); renderRooms();
+      closeOverlay('detailOverlay');
+      showToast('Item removed');
+    }
+  };
+  document.getElementById('addLogBtn').onclick = ()=>{
+    const val = document.getElementById('logNote').value.trim();
+    if(!val) return;
+    addLog(it, 'Note', val);
+    saveItems();
+    openDetail(it.id);
+  };
+  document.getElementById('printLabelBtn').onclick = ()=> printLabel(it);
+
+  document.getElementById('detailOverlay').classList.add('active');
+}
+function isoDate(d){
+  const dt = new Date(d);
+  if(isNaN(dt)) return '';
+  return dt.toISOString().slice(0,10);
+}
+function fillSelect(sel, options, current){
+  sel.innerHTML = options.map(o=>`<option value="${o}" ${o===current?'selected':''}>${o}</option>`).join('');
+}
+function closeOverlay(id){ document.getElementById(id).classList.remove('active'); }
+
+function printLabel(it){
+  const w = window.open('', '_blank', 'width=420,height=520');
+  w.document.write(`<html><head><title>Label</title><style>
+    body{font-family:Arial,sans-serif;text-align:center;padding:24px;}
+    h2{margin:6px 0 2px;font-size:16px;} p{margin:0 0 10px;color:#555;font-size:12px;}
+    #qr{margin:14px auto;}
+    .code{font-family:monospace;font-size:14px;letter-spacing:1px;margin-top:6px;}
+  </style></head><body>
+    <h2>${(it.manufacturer||'')+' '+(it.model||'')}</h2>
+    <p>${it.category||''}${it.idTag? ' · '+it.idTag:''}</p>
+    <div id="qr"></div>
+    <div class="code">${it.scanCode}</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+    <script>new QRCode(document.getElementById('qr'),{text:"${it.scanCode}",width:160,height:160});setTimeout(()=>window.print(),400);<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+/* ============ SCAN TAB ============ */
+function initScanner(){
+  document.getElementById('startScanBtn').onclick = startScan;
+  document.getElementById('stopScanBtn').onclick = stopScan;
+  document.getElementById('manualCodeBtn').onclick = ()=>{
+    const val = document.getElementById('manualCodeInput').value;
+    if(val.trim()) handleScanResult(val.trim());
+    document.getElementById('manualCodeInput').value='';
+  };
+  document.getElementById('manualCodeInput').addEventListener('keydown', e=>{
+    if(e.key==='Enter') document.getElementById('manualCodeBtn').click();
+  });
+}
+function startScan(){
+  if(typeof Html5Qrcode === 'undefined'){ showToast('Scanner library failed to load'); return; }
+  html5Qr = new Html5Qrcode("qr-reader");
+  Html5Qrcode.getCameras().then(cams=>{
+    if(!cams.length){ showToast('No camera found'); return; }
+    const camId = cams[cams.length-1].id;
+    html5Qr.start(camId, { fps:10, qrbox:220 }, decodedText=>{
+      handleScanResult(decodedText);
+    }, ()=>{}).then(()=>{
+      document.getElementById('startScanBtn').disabled = true;
+      document.getElementById('stopScanBtn').disabled = false;
+    }).catch(err=>{ showToast('Could not start camera'); console.error(err); });
+  }).catch(()=> showToast('Camera permission denied or unavailable'));
+}
+function stopScan(){
+  if(html5Qr){
+    html5Qr.stop().then(()=>html5Qr.clear()).catch(()=>{});
+  }
+  document.getElementById('startScanBtn').disabled = false;
+  document.getElementById('stopScanBtn').disabled = true;
+}
+let lastScanTime = 0;
+function handleScanResult(code){
+  const now = Date.now();
+  if(now - lastScanTime < 1200) return;
+  lastScanTime = now;
+  const it = findByCode(code);
+  const zone = document.getElementById('scanResultZone');
+  if(!it){
+    zone.innerHTML = `<div class="scan-result-card"><b>Unrecognised code:</b> <span class="mono">${code}</span><br><span class="item-sub">No item matches this scan code or ID tag.</span></div>`;
+    return;
+  }
+  const goingOut = it.status === 'Available';
+  zone.innerHTML = `<div class="scan-result-card">
+    <div style="font-family:var(--font-display);font-size:20px;text-transform:uppercase;font-weight:600;">${it.model}</div>
+    <div class="item-sub">${it.manufacturer||''} · ${it.category||''} · <span class="mono">${it.scanCode}</span></div>
+    <div style="margin:10px 0;">Current status: <b>${it.status}</b></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" id="scanCheckoutBtn">Check Out</button>
+      <button class="btn btn-sm" id="scanCheckinBtn">Check In</button>
+      <button class="btn btn-sm" id="scanViewBtn">View full details</button>
+    </div>
+  </div>`;
+  document.getElementById('scanCheckoutBtn').onclick = ()=>{
+    it.status = 'Checked Out';
+    it.lastUsed = todayISO();
+    addLog(it,'Checked out','Scanned out');
+    saveItems(); renderInventory(); logScanFeed(it,'out');
+    showToast(`Checked out: ${it.model}`);
+  };
+  document.getElementById('scanCheckinBtn').onclick = ()=>{
+    it.status = 'Available';
+    addLog(it,'Checked in','Scanned in');
+    saveItems(); renderInventory(); logScanFeed(it,'in');
+    showToast(`Checked in: ${it.model}`);
+  };
+  document.getElementById('scanViewBtn').onclick = ()=> openDetail(it.id);
+}
+function logScanFeed(it, dir){
+  scanFeedLog.unshift({ it, dir, when: nowStamp() });
+  scanFeedLog = scanFeedLog.slice(0,30);
+  const el = document.getElementById('scanFeed');
+  el.innerHTML = scanFeedLog.map(s=>`<div class="scan-feed-item">
+    <div><b>${s.it.model}</b><div class="item-sub">${s.when}</div></div>
+    <span class="pill ${s.dir}">${s.dir==='in'?'Checked in':'Checked out'}</span>
+  </div>`).join('');
+}
+
+/* ============ PLANNING TAB ============ */
+function renderRooms(){
+  const grid = document.getElementById('roomGrid');
+  grid.innerHTML = meta.rooms.map(room=>{
+    const inRoom = items.filter(it=>it.assignedRoom===room);
+    return `<div class="room-card">
+      <h3>${room}</h3>
+      <div class="room-count">${inRoom.length} item${inRoom.length===1?'':'s'} assigned</div>
+      ${inRoom.length? inRoom.map(it=>`<div class="room-item-row" data-id="${it.id}">
+          <span>${it.model}</span>
+          <button class="x-btn" data-unassign="${it.id}" title="Return to storage">✕</button>
+        </div>`).join('') : '<div class="room-empty">Nothing assigned</div>'}
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('[data-unassign]').forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      const it = items.find(i=>i.id===btn.dataset.unassign);
+      if(it){
+        addLog(it,'Returned to storage', `Unassigned from ${it.assignedRoom}`);
+        it.assignedRoom='';
+        saveItems(); renderRooms(); renderInventory();
+        showToast('Returned to storage');
+      }
+    };
+  });
+  grid.querySelectorAll('.room-item-row').forEach(row=>{
+    row.onclick = ()=> openDetail(row.dataset.id);
+  });
+}
+
+function openAssignModal(){
+  const modal = document.getElementById('assignModal');
+  modal.innerHTML = `
+    <div class="modal-head"><h2>Assign Equipment</h2><button class="close-x" id="closeAssign">✕</button></div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Room</label>
+        <select id="a-room"></select>
+      </div>
+      <div class="field">
+        <label>Search equipment</label>
+        <input id="a-search" placeholder="Type to filter…">
+      </div>
+      <div id="a-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;"></div>
+      <div class="field" style="margin-top:12px;">
+        <label>Note (optional)</label>
+        <textarea id="a-note" rows="2" placeholder="e.g. for evening reception"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="a-submit">Assign selected</button>
+      </div>
+    </div>
+  `;
+  fillSelect(document.getElementById('a-room'), meta.rooms, meta.rooms[0]);
+  const selected = new Set();
+  function renderList(){
+    const q = document.getElementById('a-search').value.toLowerCase();
+    const list = items.filter(it=> (it.manufacturer+' '+it.model).toLowerCase().includes(q));
+    document.getElementById('a-list').innerHTML = list.slice(0,150).map(it=>`
+      <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer;">
+        <input type="checkbox" data-id="${it.id}" ${selected.has(it.id)?'checked':''}>
+        <span>${it.model} <span class="item-sub">${it.manufacturer||''} · ${it.scanCode}${it.assignedRoom?' · currently in '+it.assignedRoom:''}</span></span>
+      </label>`).join('') || '<div class="room-empty" style="padding:14px;">No matches</div>';
+    document.getElementById('a-list').querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.onchange = ()=>{ cb.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id); };
+    });
+  }
+  renderList();
+  document.getElementById('a-search').oninput = renderList;
+  document.getElementById('closeAssign').onclick = ()=> closeOverlay('assignOverlay');
+  document.getElementById('a-submit').onclick = ()=>{
+    const room = document.getElementById('a-room').value;
+    const note = document.getElementById('a-note').value.trim();
+    if(!selected.size){ showToast('Select at least one item'); return; }
+    selected.forEach(id=>{
+      const it = items.find(i=>i.id===id);
+      if(it){ it.assignedRoom = room; addLog(it,'Assigned to '+room, note); }
+    });
+    saveItems(); renderRooms(); renderInventory();
+    showToast(`Assigned ${selected.size} item(s) to ${room}`);
+    closeOverlay('assignOverlay');
+  };
+  document.getElementById('assignOverlay').classList.add('active');
+}
+
+/* ============ ADD EQUIPMENT TAB ============ */
+function renderAddForm(){
+  const el = document.getElementById('addForm');
+  el.innerHTML = `
+    <div class="field"><label>Manufacturer</label><input id="n-manu"></div>
+    <div class="field"><label>Model / Description *</label><input id="n-model"></div>
+    <div class="field"><label>Category</label><input id="n-cat" list="catList"></div>
+    <div class="field"><label>Quantity</label><input id="n-qty" type="number" min="1" value="1"></div>
+    <div class="field"><label>Condition</label><select id="n-cond"></select></div>
+    <div class="field"><label>Status</label><select id="n-status"></select></div>
+    <div class="field"><label>ID Tag</label><input id="n-idtag"></div>
+    <div class="field"><label>Scan code (optional)</label><input id="n-code" placeholder="e.g. UVB-0123"></div>
+    <div class="field"><label>Storage location</label><input id="n-storage"></div>
+    <div class="field"><label>Purchase date</label><input id="n-pdate" placeholder="e.g. 03/2026"></div>
+    <div class="field"><label>Purchase price</label><input id="n-price" placeholder="£"></div>
+    <div class="field field-span2"><label>Notes</label><textarea id="n-notes" rows="2"></textarea></div>
+  `;
+  fillSelect(document.getElementById('n-cond'), CONDITION_OPTIONS, 'Working');
+  fillSelect(document.getElementById('n-status'), STATUS_OPTIONS, 'Available');
+}
+function submitAdd(){
+  const model = document.getElementById('n-model').value.trim();
+  if(!model){ showToast('Model / description is required'); return; }
+  const code = document.getElementById('n-code').value.trim();
+  const it = {
+    id: genId(),
+    manufacturer: document.getElementById('n-manu').value.trim(),
+    model,
+    category: document.getElementById('n-cat').value.trim(),
+    status: document.getElementById('n-status').value,
+    condition: document.getElementById('n-cond').value,
+    idTag: document.getElementById('n-idtag').value.trim(),
+    scanCode: code,
+    lastTested: '',
+    lastUsed: '',
+    quantity: parseInt(document.getElementById('n-qty').value)||1,
+    storageLocation: document.getElementById('n-storage').value.trim(),
+    assignedRoom: '',
+    notes: document.getElementById('n-notes').value.trim(),
+    purchaseDate: document.getElementById('n-pdate').value.trim(),
+    purchasePrice: document.getElementById('n-price').value.trim(),
+    log: []
+  };
+  addLog(it, 'Added to inventory', '');
+  items.unshift(it);
+  saveItems(); renderFilterChips(); renderInventory(); renderRooms();
+  renderAddForm();
+  showToast(`Added ${model}`);
+}
+
+/* ============ CSV EXPORT ============ */
+function exportCsv(){
+  const headers = ['Manufacturer','Model','Category','Status','Condition','ID Tag','Scan Code','Last Tested','Last Used','Quantity','Storage Location','Assigned Room','Notes','Purchase Date','Purchase Price'];
+  const rows = items.map(it=>[it.manufacturer,it.model,it.category,it.status,it.condition,it.idTag,it.scanCode,it.lastTested,it.lastUsed,it.quantity,it.storageLocation,it.assignedRoom,it.notes,it.purchaseDate,it.purchasePrice].map(csvEscape).join(','));
+  const csv = headers.join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'uvb-inventory-export.csv';
+  a.click();
+}
+
+/* ============ TABS ============ */
+function initTabs(){
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab==='scan'){ /* nothing auto */ }
+      if(btn.dataset.tab==='planning'){ renderRooms(); }
+    };
+  });
+}
+
+/* ============ DATALIST for categories ============ */
+function ensureCatDatalist(){
+  let dl = document.getElementById('catList');
+  if(!dl){
+    dl = document.createElement('datalist');
+    dl.id = 'catList';
+    document.body.appendChild(dl);
+  }
+  dl.innerHTML = categoryList().map(c=>`<option value="${c}">`).join('');
+}
+
+/* ============ INIT ============ */
+function init(){
+  renderAddForm();
+  initTabs();
+  initScanner();
+  document.getElementById('loadState').textContent = 'Connecting…';
+  const ok = firebaseInit();
+  if(ok) attachListeners();
+  document.getElementById('searchBox').oninput = renderInventory;
+  document.getElementById('roomFilter').onchange = renderInventory;
+  document.getElementById('exportCsvBtn').onclick = exportCsv;
+  document.getElementById('assignEquipBtn').onclick = openAssignModal;
+  document.getElementById('addSubmitBtn').onclick = submitAdd;
+  document.getElementById('detailOverlay').addEventListener('click', e=>{ if(e.target.id==='detailOverlay') closeOverlay('detailOverlay'); });
+  document.getElementById('assignOverlay').addEventListener('click', e=>{ if(e.target.id==='assignOverlay') closeOverlay('assignOverlay'); });
+}
+init();
+</script>
+</body>
+</html>
