@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Plan — Cable Schematic Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --ink:#14171A;
+    --panel:#1D2124;
+    --panel-2:#23282C;
+    --panel-3:#2A3034;
+    --border:#31373C;
+    --text:#E8EAED;
+    --text-muted:#8B939B;
+    --text-dim:#5B6268;
+    --accent:#E8A33D;
+    --accent-dim:#7A5A28;
+    --audio:#E8A33D;
+    --video:#4EA8DE;
+    --dmx:#B98CE0;
+    --network:#4CC38A;
+    --power:#E05B5B;
+    --data:#8B939B;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--ink);color:var(--text);font-family:'Inter',system-ui,sans-serif;}
+  ::selection{background:var(--accent);color:#14171A;}
+  .app{display:flex;flex-direction:column;height:100vh;}
+
+  /* ---------- Header ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:14px;
+    padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);
+    flex-wrap:wrap;
+  }
+  .brand{
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;letter-spacing:.08em;
+    color:var(--accent);text-transform:uppercase;white-space:nowrap;
+    padding-right:12px;border-right:1px solid var(--border);
+  }
+  .brand small{display:block;font-weight:400;color:var(--text-dim);letter-spacing:.02em;font-size:10px;margin-top:2px;}
+  .field-inline{display:flex;flex-direction:column;gap:2px;}
+  .field-inline label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);font-family:'JetBrains Mono',monospace;}
+  .field-inline input{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    padding:5px 8px;border-radius:var(--radius);font-size:12px;font-family:'Inter',sans-serif;min-width:120px;
+  }
+  .field-inline input:focus{outline:none;border-color:var(--accent);}
+  .topbar-actions{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:flex-end;}
+
+  button{
+    font-family:'Inter',sans-serif;font-size:12px;font-weight:600;
+    background:var(--panel-2);color:var(--text);border:1px solid var(--border);
+    padding:7px 12px;border-radius:var(--radius);cursor:pointer;letter-spacing:.01em;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  button:hover{border-color:var(--accent);}
+  button.primary{background:var(--accent);color:#1a1305;border-color:var(--accent);}
+  button.primary:hover{background:#f2ad4c;}
+  button.danger:hover{border-color:var(--power);color:var(--power);}
+  button.ghost{background:transparent;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  select{
+    background:var(--panel-2);color:var(--text);border:1px solid var(--border);
+    padding:6px 8px;border-radius:var(--radius);font-size:12px;font-family:'Inter',sans-serif;
+  }
+
+  /* ---------- Tabs ---------- */
+  .tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);padding:0 16px;}
+  .tab{
+    padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;
+    user-select:none;
+  }
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab-badge{background:var(--panel-3);color:var(--text-muted);font-size:9px;padding:1px 5px;border-radius:8px;margin-left:6px;}
+
+  .view{flex:1;overflow:auto;display:none;}
+  .view.active{display:block;}
+
+  /* ---------- Library ---------- */
+  .lib-wrap{padding:20px 24px;max-width:1400px;margin:0 auto;}
+  .lib-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+  .lib-toolbar h2{font-size:14px;margin:0;color:var(--text-muted);font-weight:600;}
+  .lib-cat{margin-bottom:26px;}
+  .lib-cat-title{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--text-dim);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);
+  }
+  .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+  .eq-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .eq-card-title{font-weight:600;font-size:13px;}
+  .eq-card-ports{display:flex;flex-wrap:wrap;gap:4px;}
+  .port-chip{
+    font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;
+    border:1px solid var(--border);color:var(--text-muted);display:flex;align-items:center;gap:4px;
+  }
+  .port-dot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+  .eq-card-actions{display:flex;gap:6px;margin-top:2px;}
+  .eq-card-actions button{flex:1;padding:5px 8px;font-size:11px;}
+
+  /* ---------- Schematic ---------- */
+  .schematic-toolbar{
+    display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);
+  }
+  .schematic-toolbar .hint{font-size:11px;color:var(--text-dim);margin-left:auto;font-family:'JetBrains Mono',monospace;}
+  .legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+  .legend-swatch{width:10px;height:3px;border-radius:2px;}
+
+  .canvas-outer{width:100%;height:calc(100vh - 190px);overflow:auto;background:
+      linear-gradient(var(--panel) 1px, transparent 1px) 0 0/24px 24px,
+      linear-gradient(90deg, var(--panel) 1px, transparent 1px) 0 0/24px 24px,
+      var(--ink);
+  }
+  #schematicCanvas{position:relative;width:2600px;height:1500px;}
+
+  .eq-node{
+    position:absolute;width:186px;background:var(--panel);border:1px solid var(--border);
+    border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,.35);user-select:none;
+  }
+  .eq-node.selected{border-color:var(--accent);}
+  .eq-node-head{
+    display:flex;align-items:center;justify-content:space-between;padding:6px 8px;
+    background:var(--panel-3);border-bottom:1px solid var(--border);cursor:grab;
+    border-radius:var(--radius) var(--radius) 0 0;
+  }
+  .eq-node-head:active{cursor:grabbing;}
+  .eq-node-title{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .eq-node-x{color:var(--text-dim);cursor:pointer;font-size:13px;line-height:1;padding:0 2px;}
+  .eq-node-x:hover{color:var(--power);}
+  .eq-node-body{display:flex;justify-content:space-between;padding:6px 0;gap:4px;}
+  .port-col{display:flex;flex-direction:column;gap:0;flex:1;min-width:0;}
+  .port-row{display:flex;align-items:center;gap:5px;padding:3px 6px;font-size:9.5px;font-family:'JetBrains Mono',monospace;color:var(--text-muted);white-space:nowrap;overflow:hidden;position:relative;}
+  .port-row.out{flex-direction:row-reverse;text-align:right;}
+  .port-jack{
+    width:9px;height:9px;border-radius:50%;flex:none;border:1.5px solid var(--ink);cursor:crosshair;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08);
+  }
+  .port-jack:hover{transform:scale(1.35);}
+  .port-label{overflow:hidden;text-overflow:ellipsis;}
+  .port-col-divider{width:1px;background:var(--border);margin:2px 0;}
+
+  svg#linesSvg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+  .conn-path{fill:none;stroke-width:2.2;}
+  .conn-hit{fill:none;}
+  .conn-hit:hover + .conn-path, .conn-hit:hover{filter:brightness(1.3);}
+  .conn-label{font-family:'JetBrains Mono',monospace;font-size:9px;fill:var(--text-muted);pointer-events:none;}
+  .temp-path{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:4 3;}
+
+  .empty-state{padding:60px 20px;text-align:center;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:12px;}
+
+  /* ---------- Cable Plan ---------- */
+  .plan-wrap{padding:20px 24px;max-width:1400px;margin:0 auto;}
+  table.plan-table{width:100%;border-collapse:collapse;font-size:12px;}
+  table.plan-table th{
+    text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--text-dim);border-bottom:1px solid var(--border);padding:8px 8px;
+  }
+  table.plan-table td{padding:6px 8px;border-bottom:1px solid var(--panel-3);vertical-align:middle;}
+  table.plan-table input, table.plan-table select{width:100%;padding:4px 6px;font-size:11.5px;}
+  .type-pill{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10px;}
+  .totals{margin-top:22px;display:flex;gap:18px;flex-wrap:wrap;}
+  .total-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;min-width:120px;}
+  .total-card .n{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;}
+  .total-card .l{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(10,11,12,.7);display:none;align-items:center;justify-content:center;z-index:100;
+  }
+  .modal-backdrop.active{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:6px;width:480px;max-width:92vw;max-height:86vh;overflow:auto;padding:20px;}
+  .modal h3{margin:0 0 4px 0;font-size:15px;}
+  .modal .sub{font-size:11px;color:var(--text-dim);margin-bottom:16px;}
+  .modal-field{margin-bottom:12px;}
+  .modal-field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+  .modal-field input, .modal-field select{width:100%;padding:7px 9px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);font-size:12px;}
+  .port-edit-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+  .port-edit-row select, .port-edit-row input{padding:5px 6px;font-size:11px;}
+  .port-edit-row .io-sel{width:56px;flex:none;}
+  .port-edit-row .name-in{flex:1;}
+  .port-edit-row .conn-sel{width:110px;flex:none;}
+  .port-edit-row .rm{flex:none;color:var(--text-dim);cursor:pointer;padding:2px 6px;}
+  .port-edit-row .rm:hover{color:var(--power);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+  .modal-section-label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);margin:16px 0 8px;}
+
+  ::-webkit-scrollbar{width:11px;height:11px;}
+  ::-webkit-scrollbar-track{background:var(--ink);}
+  ::-webkit-scrollbar-thumb{background:var(--panel-3);border-radius:6px;border:2px solid var(--ink);}
+  ::-webkit-scrollbar-thumb:hover{background:var(--border);}
+
+  #toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--panel-3);border:1px solid var(--border);color:var(--text);
+    padding:10px 18px;border-radius:6px;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.4);
+    opacity:0;pointer-events:none;transition:opacity .18s ease, transform .18s ease;z-index:200;max-width:80vw;text-align:center;
+  }
+  #toast.active{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">Signal Plan<small>Cable Schematic Planner</small></div>
+    <div class="field-inline"><label>Project</label><input id="fProjectName" placeholder="Untitled Project"></div>
+    <div class="field-inline"><label>Venue / Space</label><input id="fVenue" placeholder="e.g. The Studio"></div>
+    <div class="field-inline"><label>Date</label><input id="fDate" type="date"></div>
+    <div class="topbar-actions">
+      <div class="field-inline"><label>Saved Projects</label><select id="projectSelect"></select></div>
+      <button id="btnNewProject" class="ghost">New</button>
+      <button id="btnExportJson" class="ghost">Export JSON</button>
+      <button id="btnImportJson" class="ghost">Import JSON</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="library">Equipment Library</div>
+    <div class="tab" data-tab="schematic">Schematic <span class="tab-badge" id="canvasCount">0</span></div>
+    <div class="tab" data-tab="plan">Cable Plan <span class="tab-badge" id="connCount">0</span></div>
+  </div>
+
+  <!-- LIBRARY VIEW -->
+  <div class="view active" id="view-library">
+    <div class="lib-wrap">
+      <div class="lib-toolbar">
+        <h2>Equipment Library — click a card to add it to the schematic canvas</h2>
+        <button class="primary" id="btnAddCustom">+ Add Custom Equipment</button>
+      </div>
+      <div id="libraryContainer"></div>
+    </div>
+  </div>
+
+  <!-- SCHEMATIC VIEW -->
+  <div class="view" id="view-schematic">
+    <div class="schematic-toolbar">
+      <div class="legend" id="legend"></div>
+      <div class="hint">drag a jack (●) to another jack to connect · drag a header to move · click a cable to delete it</div>
+    </div>
+    <div class="canvas-outer">
+      <div id="schematicCanvas">
+        <svg id="linesSvg"></svg>
+      </div>
+    </div>
+    <div class="schematic-toolbar" style="border-top:1px solid var(--border);border-bottom:none;">
+      <button id="btnClearCanvas" class="ghost danger">Clear Canvas</button>
+      <button id="btnExportSchematic" class="primary">Export Schematic → PDF</button>
+    </div>
+  </div>
+
+  <!-- CABLE PLAN VIEW -->
+  <div class="view" id="view-plan">
+    <div class="plan-wrap">
+      <div class="lib-toolbar">
+        <h2>Cable Length Plan — generated from your schematic connections</h2>
+        <button class="primary" id="btnExportPlan">Export Cable Plan → PDF</button>
+      </div>
+      <div id="planTableWrap"></div>
+      <div class="totals" id="totalsWrap"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL: Equipment editor -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- Confirm dialog (replaces native confirm(), which the artifact sandbox blocks) -->
+<div class="modal-backdrop" id="confirmBackdrop">
+  <div class="modal" style="width:360px;padding:20px;">
+    <div id="confirmMessage" style="font-size:13px;line-height:1.5;color:var(--text);margin-bottom:18px;"></div>
+    <div class="modal-actions">
+      <button class="ghost" id="confirmNo">Cancel</button>
+      <button class="primary" id="confirmYes">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast (replaces native alert()) -->
+<div id="toast"></div>
+
+<script>
+/* =========================================================
+   CONSTANTS
+========================================================= */
+const SIGNAL_COLORS = { audio:'#E8A33D', video:'#4EA8DE', dmx:'#B98CE0', network:'#4CC38A', power:'#E05B5B', data:'#8B939B' };
+const CONNECTORS = {
+  'XLR':'audio','TRS 1/4"':'audio','Speakon':'audio','RCA':'audio','3.5mm':'audio',
+  'HDMI':'video','SDI':'video','DisplayPort':'video',
+  'DMX 5-pin':'dmx',
+  'Cat5e':'network','Cat6':'network','Fibre':'network',
+  'PowerCon':'power','IEC':'power',
+  'USB':'data'
+};
+const CONNECTOR_LIST = Object.keys(CONNECTORS);
+
+function signalOf(connector){ return CONNECTORS[connector] || 'data'; }
+function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+/* =========================================================
+   STARTER EQUIPMENT LIBRARY
+========================================================= */
+function starterLibrary(){
+  const P = (name, io, connector) => ({ id: uid('p'), name, io, connector });
+  return [
+    // SOUND
+    { id: uid('eq'), name:'Digital Mixing Console', category:'Sound', ports:[P('Mic/Line In 1','in','XLR'),P('Mic/Line In 2','in','XLR'),P('Main Out L','out','XLR'),P('Main Out R','out','XLR'),P('AES Out','out','XLR')] },
+    { id: uid('eq'), name:'Analogue Mixing Console', category:'Sound', ports:[P('Channel In 1','in','XLR'),P('Channel In 2','in','XLR'),P('Main Out L','out','XLR'),P('Main Out R','out','XLR')] },
+    { id: uid('eq'), name:'Stage Box', category:'Sound', ports:[P('Input 1','in','XLR'),P('Input 2','in','XLR'),P('Snake Out','out','Cat6'),P('Local Out 1','out','XLR')] },
+    { id: uid('eq'), name:'Wireless Mic Receiver', category:'Sound', ports:[P('Audio Out','out','XLR')] },
+    { id: uid('eq'), name:'DI Box', category:'Sound', ports:[P('Instrument In','in','TRS 1/4"'),P('Line Out','out','XLR')] },
+    { id: uid('eq'), name:'Power Amplifier', category:'Sound', ports:[P('Input L','in','XLR'),P('Input R','in','XLR'),P('Speaker Out L','out','Speakon'),P('Speaker Out R','out','Speakon')] },
+    { id: uid('eq'), name:'Active Loudspeaker', category:'Sound', ports:[P('Signal In','in','XLR')] },
+    { id: uid('eq'), name:'Passive Loudspeaker', category:'Sound', ports:[P('Speaker In','in','Speakon')] },
+    { id: uid('eq'), name:'Subwoofer (Active)', category:'Sound', ports:[P('Signal In','in','XLR')] },
+    { id: uid('eq'), name:'Monitor Wedge', category:'Sound', ports:[P('Signal In','in','XLR')] },
+    { id: uid('eq'), name:'Playback Device', category:'Sound', ports:[P('Line Out L','out','RCA'),P('Line Out R','out','RCA')] },
+    { id: uid('eq'), name:'Audio Interface', category:'Sound', ports:[P('Input 1','in','XLR'),P('USB Out','out','USB')] },
+    // VIDEO
+    { id: uid('eq'), name:'Camera', category:'Video', ports:[P('Video Out','out','SDI')] },
+    { id: uid('eq'), name:'Video Switcher', category:'Video', ports:[P('Input 1','in','SDI'),P('Input 2','in','HDMI'),P('Program Out','out','SDI'),P('Aux Out','out','HDMI')] },
+    { id: uid('eq'), name:'Projector', category:'Video', ports:[P('Video In','in','HDMI')] },
+    { id: uid('eq'), name:'LED Wall Processor', category:'Video', ports:[P('Video In','in','HDMI'),P('Panel Out 1','out','Cat6')] },
+    { id: uid('eq'), name:'Media Server', category:'Video', ports:[P('Video Out','out','HDMI')] },
+    { id: uid('eq'), name:'Confidence Monitor', category:'Video', ports:[P('Video In','in','HDMI')] },
+    { id: uid('eq'), name:'HDMI–SDI Converter', category:'Video', ports:[P('HDMI In','in','HDMI'),P('SDI Out','out','SDI')] },
+    // LIGHTING
+    { id: uid('eq'), name:'Lighting Console', category:'Lighting', ports:[P('DMX Out','out','DMX 5-pin')] },
+    { id: uid('eq'), name:'Dimmer / Relay Pack', category:'Lighting', ports:[P('DMX In','in','DMX 5-pin'),P('Circuit Out 1','out','PowerCon')] },
+    { id: uid('eq'), name:'Moving Head', category:'Lighting', ports:[P('DMX In','in','DMX 5-pin')] },
+    { id: uid('eq'), name:'LED Fixture', category:'Lighting', ports:[P('DMX In','in','DMX 5-pin')] },
+    { id: uid('eq'), name:'DMX Splitter', category:'Lighting', ports:[P('DMX In','in','DMX 5-pin'),P('DMX Out 1','out','DMX 5-pin'),P('DMX Out 2','out','DMX 5-pin')] },
+    // NETWORK
+    { id: uid('eq'), name:'Network Switch', category:'Network', ports:[P('Uplink','in','Cat6'),P('Port 1','out','Cat6'),P('Port 2','out','Cat6')] },
+    { id: uid('eq'), name:'Wireless Access Point', category:'Network', ports:[P('Data In','in','Cat6')] },
+    { id: uid('eq'), name:'Media Converter', category:'Network', ports:[P('Copper In','in','Cat6'),P('Fibre Out','out','Fibre')] },
+    // STAGING / MISC
+    { id: uid('eq'), name:'Power Distribution Unit', category:'Staging/Misc', ports:[P('Mains In','in','IEC'),P('Circuit 1','out','PowerCon'),P('Circuit 2','out','PowerCon')] },
+    { id: uid('eq'), name:'Generator', category:'Staging/Misc', ports:[P('Power Out','out','IEC')] },
+  ];
+}
+
+/* =========================================================
+   STATE
+========================================================= */
+let state = null;
+const STORAGE_PREFIX = 'cableplan_project_';
+const LAST_KEY = 'cableplan_last_project';
+
+function newProjectState(name){
+  return {
+    id: uid('proj'),
+    name: name || 'Untitled Project',
+    venue: '',
+    date: '',
+    library: starterLibrary(),
+    canvasItems: [],
+    connections: []
+  };
+}
+
+function saveState(){
+  if(!state) return;
+  localStorage.setItem(STORAGE_PREFIX + state.id, JSON.stringify(state));
+  localStorage.setItem(LAST_KEY, state.id);
+  refreshProjectSelect();
+}
+
+function loadState(id){
+  const raw = localStorage.getItem(STORAGE_PREFIX + id);
+  if(!raw) return null;
+  return JSON.parse(raw);
+}
+
+function allSavedProjects(){
+  const out = [];
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k.startsWith(STORAGE_PREFIX)){
+      try{ const p = JSON.parse(localStorage.getItem(k)); out.push({id:p.id, name:p.name}); }catch(e){}
+    }
+  }
+  return out;
+}
+
+function refreshProjectSelect(){
+  const sel = document.getElementById('projectSelect');
+  const projects = allSavedProjects();
+  sel.innerHTML = '';
+  projects.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.name;
+    if(state && p.id === state.id) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function initProject(){
+  const lastId = localStorage.getItem(LAST_KEY);
+  if(lastId){
+    const loaded = loadState(lastId);
+    if(loaded){ state = loaded; return; }
+  }
+  state = newProjectState('Untitled Project');
+  saveState();
+}
+
+/* =========================================================
+   RENDER: HEADER FIELDS
+========================================================= */
+function syncHeaderFields(){
+  document.getElementById('fProjectName').value = state.name;
+  document.getElementById('fVenue').value = state.venue;
+  document.getElementById('fDate').value = state.date;
+  refreshProjectSelect();
+}
+document.getElementById('fProjectName').addEventListener('input', e=>{ state.name = e.target.value || 'Untitled Project'; saveState(); });
+document.getElementById('fVenue').addEventListener('input', e=>{ state.venue = e.target.value; saveState(); });
+document.getElementById('fDate').addEventListener('input', e=>{ state.date = e.target.value; saveState(); });
+
+document.getElementById('btnNewProject').addEventListener('click', ()=>{
+  showConfirm('Start a new project? Your current project is already saved and can be reopened from the dropdown.', ()=>{
+    state = newProjectState('Untitled Project');
+    saveState();
+    renderAll();
+  });
+});
+document.getElementById('projectSelect').addEventListener('change', e=>{
+  const loaded = loadState(e.target.value);
+  if(loaded){ state = loaded; localStorage.setItem(LAST_KEY, state.id); renderAll(); }
+});
+document.getElementById('btnExportJson').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (state.name || 'project').replace(/\s+/g,'_') + '.json';
+  a.click();
+});
+document.getElementById('btnImportJson').addEventListener('click', ()=> document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const imported = JSON.parse(reader.result);
+      imported.id = uid('proj'); // avoid collision
+      state = imported;
+      saveState();
+      renderAll();
+    }catch(err){ showToast('Could not read that file as a valid project JSON.'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* =========================================================
+   TABS
+========================================================= */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-' + tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab === 'schematic') requestAnimationFrame(updateConnectionLines);
+    if(tab.dataset.tab === 'plan') renderPlan();
+  });
+});
+
+/* =========================================================
+   LIBRARY VIEW
+========================================================= */
+function renderLibrary(){
+  const container = document.getElementById('libraryContainer');
+  container.innerHTML = '';
+  const cats = ['Sound','Video','Lighting','Network','Staging/Misc'];
+  const present = [...new Set(state.library.map(e=>e.category))];
+  present.forEach(c=>{ if(!cats.includes(c)) cats.push(c); });
+
+  cats.forEach(cat=>{
+    const items = state.library.filter(e=>e.category === cat);
+    if(items.length === 0) return;
+    const block = document.createElement('div');
+    block.className = 'lib-cat';
+    block.innerHTML = `<div class="lib-cat-title">${cat}</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'lib-grid';
+    items.forEach(eq=>{
+      const card = document.createElement('div');
+      card.className = 'eq-card';
+      const portsHtml = eq.ports.map(p=>{
+        const col = SIGNAL_COLORS[signalOf(p.connector)];
+        return `<span class="port-chip"><span class="port-dot" style="background:${col}"></span>${p.name} · ${p.connector}</span>`;
+      }).join('');
+      card.innerHTML = `
+        <div class="eq-card-title">${eq.name}</div>
+        <div class="eq-card-ports">${portsHtml || '<span style="color:var(--text-dim);font-size:10px;">no ports defined</span>'}</div>
+        <div class="eq-card-actions">
+          <button class="primary btn-add-canvas">Add to Canvas</button>
+          <button class="ghost btn-edit-eq">Edit</button>
+          <button class="ghost danger btn-del-eq">Delete</button>
+        </div>`;
+      card.querySelector('.btn-add-canvas').addEventListener('click', ()=> addEquipmentToCanvas(eq));
+      card.querySelector('.btn-edit-eq').addEventListener('click', ()=> openEquipmentModal(eq));
+      card.querySelector('.btn-del-eq').addEventListener('click', ()=>{
+        showConfirm(`Delete "${eq.name}" from the library? This won't remove copies already placed on the canvas.`, ()=>{
+          state.library = state.library.filter(x=>x.id !== eq.id);
+          saveState(); renderLibrary();
+        });
+      });
+      grid.appendChild(card);
+    });
+    block.appendChild(grid);
+    container.appendChild(block);
+  });
+}
+
+document.getElementById('btnAddCustom').addEventListener('click', ()=>{
+  const eq = { id: uid('eq'), name:'New Equipment', category:'Staging/Misc', ports:[] };
+  state.library.push(eq);
+  saveState();
+  openEquipmentModal(eq, true);
+});
+
+/* =========================================================
+   EQUIPMENT MODAL (used for library items AND canvas instances)
+========================================================= */
+let modalTarget = null; // { ports, name, category } reference — could be library eq or canvas item
+let modalIsCanvasInstance = false;
+
+function openEquipmentModal(target, isNew){
+  modalTarget = target;
+  modalIsCanvasInstance = false;
+  buildModal(isNew);
+}
+function openInstancePortsModal(canvasItem){
+  modalTarget = canvasItem;
+  modalIsCanvasInstance = true;
+  buildModal(false);
+}
+
+function buildModal(isNew){
+  const backdrop = document.getElementById('modalBackdrop');
+  const content = document.getElementById('modalContent');
+  const t = modalTarget;
+  content.innerHTML = `
+    <h3>${modalIsCanvasInstance ? 'Edit ports (this instance only)' : 'Edit equipment'}</h3>
+    <div class="sub">${modalIsCanvasInstance ? 'Changes apply only to this item on the canvas.' : 'Changes apply to the library definition — future items added to the canvas will use these ports.'}</div>
+    ${modalIsCanvasInstance ? '' : `
+    <div class="modal-field"><label>Name</label><input id="mfName" value="${escapeHtml(t.name)}"></div>
+    <div class="modal-field"><label>Category</label>
+      <select id="mfCategory">
+        ${['Sound','Video','Lighting','Network','Staging/Misc'].map(c=>`<option value="${c}" ${t.category===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+    </div>`}
+    <div class="modal-section-label">Inputs &amp; Outputs</div>
+    <div id="portEditList"></div>
+    <button class="ghost" id="btnAddPort" style="width:100%;margin-top:4px;">+ Add Port</button>
+    <div class="modal-actions">
+      <button class="ghost" id="btnModalCancel">Cancel</button>
+      <button class="primary" id="btnModalSave">Save</button>
+    </div>
+  `;
+  renderPortEditRows();
+  document.getElementById('btnAddPort').addEventListener('click', ()=>{
+    t.ports.push({ id: uid('p'), name:'New Port', io:'in', connector:'XLR' });
+    renderPortEditRows();
+  });
+  document.getElementById('btnModalCancel').addEventListener('click', closeModal);
+  document.getElementById('btnModalSave').addEventListener('click', ()=>{
+    if(!modalIsCanvasInstance){
+      t.name = document.getElementById('mfName').value || 'Unnamed Equipment';
+      t.category = document.getElementById('mfCategory').value;
+    }
+    saveState();
+    closeModal();
+    renderLibrary();
+    renderCanvas();
+    renderPlan();
+  });
+  backdrop.classList.add('active');
+}
+
+function renderPortEditRows(){
+  const t = modalTarget;
+  const wrap = document.getElementById('portEditList');
+  wrap.innerHTML = '';
+  t.ports.forEach((p, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'port-edit-row';
+    row.innerHTML = `
+      <select class="io-sel">
+        <option value="in" ${p.io==='in'?'selected':''}>IN</option>
+        <option value="out" ${p.io==='out'?'selected':''}>OUT</option>
+      </select>
+      <input class="name-in" value="${escapeHtml(p.name)}" placeholder="Port name">
+      <select class="conn-sel">${CONNECTOR_LIST.map(c=>`<option value="${c}" ${p.connector===c?'selected':''}>${c}</option>`).join('')}</select>
+      <span class="rm" title="Remove port">✕</span>
+    `;
+    row.querySelector('.io-sel').addEventListener('change', e=> p.io = e.target.value);
+    row.querySelector('.name-in').addEventListener('input', e=> p.name = e.target.value);
+    row.querySelector('.conn-sel').addEventListener('change', e=> p.connector = e.target.value);
+    row.querySelector('.rm').addEventListener('click', ()=>{ t.ports.splice(idx,1); renderPortEditRows(); });
+    wrap.appendChild(row);
+  });
+}
+
+function closeModal(){
+  document.getElementById('modalBackdrop').classList.remove('active');
+  modalTarget = null;
+}
+document.getElementById('modalBackdrop').addEventListener('click', e=>{ if(e.target.id === 'modalBackdrop') closeModal(); });
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* =========================================================
+   IN-APP CONFIRM / TOAST
+   (native confirm()/alert() are silently blocked inside the
+   sandboxed artifact preview, so we roll our own here)
+========================================================= */
+function showConfirm(message, onConfirm){
+  const backdrop = document.getElementById('confirmBackdrop');
+  document.getElementById('confirmMessage').textContent = message;
+  backdrop.classList.add('active');
+  const yesBtn = document.getElementById('confirmYes');
+  const noBtn = document.getElementById('confirmNo');
+  function cleanup(){
+    backdrop.classList.remove('active');
+    yesBtn.removeEventListener('click', onYes);
+    noBtn.removeEventListener('click', onNo);
+  }
+  function onYes(){ cleanup(); onConfirm(); }
+  function onNo(){ cleanup(); }
+  yesBtn.addEventListener('click', onYes);
+  noBtn.addEventListener('click', onNo);
+}
+
+let toastTimer = null;
+function showToast(message){
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('active');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> toast.classList.remove('active'), 3800);
+}
+
+/* =========================================================
+   SCHEMATIC CANVAS
+========================================================= */
+function addEquipmentToCanvas(libEq){
+  const item = {
+    id: uid('item'),
+    libraryId: libEq.id,
+    name: libEq.name,
+    category: libEq.category,
+    ports: JSON.parse(JSON.stringify(libEq.ports)), // snapshot so editing later doesn't retroactively change placed items
+    x: 60 + Math.round(Math.random()*300),
+    y: 60 + Math.round(Math.random()*300)
+  };
+  state.canvasItems.push(item);
+  saveState();
+  renderCanvas();
+  // switch to schematic tab for feedback
+  document.querySelector('.tab[data-tab="schematic"]').click();
+}
+
+function renderCanvas(){
+  const canvas = document.getElementById('schematicCanvas');
+  // remove all nodes but keep svg
+  canvas.querySelectorAll('.eq-node').forEach(n=>n.remove());
+  document.getElementById('canvasCount').textContent = state.canvasItems.length;
+  document.getElementById('connCount').textContent = state.connections.length;
+
+  state.canvasItems.forEach(item=>{
+    const node = document.createElement('div');
+    node.className = 'eq-node';
+    node.style.left = item.x + 'px';
+    node.style.top = item.y + 'px';
+    node.dataset.itemId = item.id;
+
+    const ins = item.ports.filter(p=>p.io==='in');
+    const outs = item.ports.filter(p=>p.io==='out');
+    const maxRows = Math.max(ins.length, outs.length, 1);
+
+    node.innerHTML = `
+      <div class="eq-node-head">
+        <span class="eq-node-title">${escapeHtml(item.name)}</span>
+        <span class="eq-node-x" title="Remove from canvas">✕</span>
+      </div>
+      <div class="eq-node-body">
+        <div class="port-col in-col"></div>
+        <div class="port-col-divider"></div>
+        <div class="port-col out-col"></div>
+      </div>
+      <div style="padding:4px 8px 7px;">
+        <span style="font-size:9px;color:var(--text-dim);cursor:pointer;text-decoration:underline;" class="edit-instance-ports">edit ports</span>
+      </div>
+    `;
+
+    const inCol = node.querySelector('.in-col');
+    const outCol = node.querySelector('.out-col');
+    ins.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = 'port-row in';
+      const col = SIGNAL_COLORS[signalOf(p.connector)];
+      row.innerHTML = `<span class="port-jack" style="background:${col}" data-item="${item.id}" data-port="${p.id}" data-io="in"></span><span class="port-label" title="${escapeHtml(p.name)} (${p.connector})">${escapeHtml(p.name)}</span>`;
+      inCol.appendChild(row);
+    });
+    outs.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = 'port-row out';
+      const col = SIGNAL_COLORS[signalOf(p.connector)];
+      row.innerHTML = `<span class="port-label" title="${escapeHtml(p.name)} (${p.connector})">${escapeHtml(p.name)}</span><span class="port-jack" style="background:${col}" data-item="${item.id}" data-port="${p.id}" data-io="out"></span>`;
+      outCol.appendChild(row);
+    });
+
+    node.querySelector('.eq-node-x').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      showConfirm(`Remove "${item.name}" from the canvas? Connected cables will also be removed.`, ()=>{
+        state.canvasItems = state.canvasItems.filter(i=>i.id !== item.id);
+        state.connections = state.connections.filter(c=> c.fromItem !== item.id && c.toItem !== item.id);
+        saveState(); renderCanvas(); renderPlan();
+      });
+    });
+    node.querySelector('.edit-instance-ports').addEventListener('click', ()=> openInstancePortsModal(item));
+
+    // drag node
+    const head = node.querySelector('.eq-node-head');
+    head.addEventListener('mousedown', e=>{
+      if(e.target.classList.contains('eq-node-x')) return; // let the delete button handle its own click
+      e.preventDefault();
+      const startX = e.clientX, startY = e.clientY;
+      const origX = item.x, origY = item.y;
+      function onMove(ev){
+        item.x = Math.max(0, origX + (ev.clientX - startX));
+        item.y = Math.max(0, origY + (ev.clientY - startY));
+        node.style.left = item.x + 'px';
+        node.style.top = item.y + 'px';
+        updateConnectionLines();
+      }
+      function onUp(){
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        saveState();
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    canvas.appendChild(node);
+  });
+
+  // port connection dragging
+  canvas.querySelectorAll('.port-jack').forEach(jack=>{
+    jack.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      startConnectionDrag(jack);
+    });
+  });
+
+  renderLegend();
+  requestAnimationFrame(updateConnectionLines);
+}
+
+function renderLegend(){
+  const legend = document.getElementById('legend');
+  legend.innerHTML = Object.entries(SIGNAL_COLORS).map(([k,v])=>
+    `<span class="legend-item"><span class="legend-swatch" style="background:${v}"></span>${k}</span>`
+  ).join('');
+}
+
+/* --- connection dragging --- */
+let dragState = null;
+function startConnectionDrag(jack){
+  const svg = document.getElementById('linesSvg');
+  const tempPath = document.createElementNS('http://www.w3.org/2000/svg','path');
+  tempPath.setAttribute('class','temp-path');
+  svg.appendChild(tempPath);
+  const start = jackCenter(jack);
+  dragState = { fromJack: jack, tempPath, start };
+
+  function onMove(ev){
+    const canvasRect = document.getElementById('schematicCanvas').getBoundingClientRect();
+    const mx = ev.clientX - canvasRect.left + document.querySelector('.canvas-outer').scrollLeft;
+    const my = ev.clientY - canvasRect.top + document.querySelector('.canvas-outer').scrollTop;
+    tempPath.setAttribute('d', bezier(start.x, start.y, mx, my));
+  }
+  function onUp(ev){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    tempPath.remove();
+    const target = document.elementFromPoint(ev.clientX, ev.clientY);
+    if(target && target.classList.contains('port-jack') && target !== dragState.fromJack){
+      tryCreateConnection(dragState.fromJack, target);
+    }
+    dragState = null;
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function jackCenter(jack){
+  const canvas = document.getElementById('schematicCanvas');
+  const node = jack.closest('.eq-node');
+  const nodeX = parseFloat(node.style.left);
+  const nodeY = parseFloat(node.style.top);
+  return {
+    x: nodeX + jack.offsetParent.offsetLeft + jack.offsetLeft + jack.offsetWidth/2 - node.offsetLeft + node.offsetLeft,
+    y: nodeY + (jack.getBoundingClientRect().top - node.getBoundingClientRect().top) + jack.offsetHeight/2
+  };
+}
+// simpler + reliable center calc using offsets relative to canvas
+function jackCenterAccurate(jack){
+  const canvas = document.getElementById('schematicCanvas');
+  const canvasRect = canvas.getBoundingClientRect();
+  const jr = jack.getBoundingClientRect();
+  const scrollBox = document.querySelector('.canvas-outer');
+  return {
+    x: jr.left - canvasRect.left + jr.width/2,
+    y: jr.top - canvasRect.top + jr.height/2
+  };
+}
+jackCenter = jackCenterAccurate;
+
+function bezier(x1,y1,x2,y2){
+  const dx = Math.max(60, Math.abs(x2-x1) * 0.5);
+  return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
+}
+
+function tryCreateConnection(jackA, jackB){
+  const ioA = jackA.dataset.io, ioB = jackB.dataset.io;
+  if(ioA === ioB){ showToast('Connect an output to an input — you tried to connect two ' + ioA + 's.'); return; }
+  const outJack = ioA === 'out' ? jackA : jackB;
+  const inJack = ioA === 'out' ? jackB : jackA;
+  const fromItem = outJack.dataset.item, fromPort = outJack.dataset.port;
+  const toItem = inJack.dataset.item, toPort = inJack.dataset.port;
+
+  const fromItemObj = state.canvasItems.find(i=>i.id===fromItem);
+  const toItemObj = state.canvasItems.find(i=>i.id===toItem);
+  const fromPortObj = fromItemObj.ports.find(p=>p.id===fromPort);
+  const toPortObj = toItemObj.ports.find(p=>p.id===toPort);
+
+  // prevent exact duplicate
+  const dup = state.connections.some(c=>c.fromItem===fromItem && c.fromPort===fromPort && c.toItem===toItem && c.toPort===toPort);
+  if(dup){ showToast('That connection already exists.'); return; }
+
+  const finalize = ()=>{
+    state.connections.push({
+      id: uid('conn'),
+      fromItem, fromPort, toItem, toPort,
+      connector: fromPortObj.connector,
+      label: '',
+      length: '',
+      qty: 1,
+      notes: ''
+    });
+    saveState();
+    document.getElementById('connCount').textContent = state.connections.length;
+    updateConnectionLines();
+    renderPlan();
+  };
+
+  if(signalOf(fromPortObj.connector) !== signalOf(toPortObj.connector)){
+    showConfirm(`Connector mismatch: ${fromPortObj.connector} → ${toPortObj.connector}. These are different signal types. Create the connection anyway?`, finalize);
+  } else {
+    finalize();
+  }
+}
+
+function updateConnectionLines(){
+  const svg = document.getElementById('linesSvg');
+  svg.querySelectorAll('.conn-path, .conn-label, .conn-hit').forEach(el=>el.remove());
+  const canvas = document.getElementById('schematicCanvas');
+  svg.setAttribute('width', canvas.offsetWidth);
+  svg.setAttribute('height', canvas.offsetHeight);
+
+  state.connections.forEach(conn=>{
+    const fromJack = canvas.querySelector(`.port-jack[data-item="${conn.fromItem}"][data-port="${conn.fromPort}"]`);
+    const toJack = canvas.querySelector(`.port-jack[data-item="${conn.toItem}"][data-port="${conn.toPort}"]`);
+    if(!fromJack || !toJack) return;
+    const a = jackCenter(fromJack), b = jackCenter(toJack);
+    const color = SIGNAL_COLORS[signalOf(conn.connector)];
+    const d = bezier(a.x,a.y,b.x,b.y);
+
+    const deleteThis = ()=>{
+      showConfirm('Delete this connection' + (conn.label? ` ("${conn.label}")`:'') + '?', ()=>{
+        state.connections = state.connections.filter(c=>c.id !== conn.id);
+        saveState(); updateConnectionLines(); renderPlan();
+        document.getElementById('connCount').textContent = state.connections.length;
+      });
+    };
+
+    // wide invisible path underneath, purely so the cable is easy to click precisely
+    const hitPath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    hitPath.setAttribute('d', d);
+    hitPath.setAttribute('class','conn-hit');
+    hitPath.setAttribute('stroke', 'transparent');
+    hitPath.setAttribute('stroke-width', '16');
+    hitPath.setAttribute('fill', 'none');
+    hitPath.style.pointerEvents = 'stroke';
+    hitPath.style.cursor = 'pointer';
+    hitPath.addEventListener('click', deleteThis);
+    svg.appendChild(hitPath);
+
+    // visible colored path on top, for rendering only
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('class','conn-path');
+    path.setAttribute('stroke', color);
+    path.style.pointerEvents = 'none';
+    svg.appendChild(path);
+
+    if(conn.label){
+      const mx = (a.x+b.x)/2, my=(a.y+b.y)/2 - 6;
+      const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.setAttribute('x', mx); text.setAttribute('y', my);
+      text.setAttribute('class','conn-label');
+      text.setAttribute('text-anchor','middle');
+      text.textContent = conn.label;
+      svg.appendChild(text);
+    }
+  });
+}
+
+document.getElementById('btnClearCanvas').addEventListener('click', ()=>{
+  showConfirm('Remove all equipment and connections from the canvas? The library is unaffected.', ()=>{
+    state.canvasItems = [];
+    state.connections = [];
+    saveState(); renderCanvas(); renderPlan();
+  });
+});
+
+/* =========================================================
+   CABLE PLAN VIEW
+========================================================= */
+function itemPortLabel(itemId, portId){
+  const item = state.canvasItems.find(i=>i.id===itemId);
+  if(!item) return '—';
+  const port = item.ports.find(p=>p.id===portId);
+  return `${item.name} <span style="color:var(--text-dim)">/ ${port ? port.name : '?'}</span>`;
+}
+
+function renderPlan(){
+  const wrap = document.getElementById('planTableWrap');
+  document.getElementById('connCount').textContent = state.connections.length;
+  if(state.connections.length === 0){
+    wrap.innerHTML = `<div class="empty-state">No connections yet. Draw cables between equipment on the Schematic tab and they'll appear here.</div>`;
+    document.getElementById('totalsWrap').innerHTML = '';
+    return;
+  }
+  const rows = state.connections.map(conn=>`
+    <tr data-id="${conn.id}">
+      <td>${itemPortLabel(conn.fromItem, conn.fromPort)}</td>
+      <td>${itemPortLabel(conn.toItem, conn.toPort)}</td>
+      <td>
+        <span class="type-pill"><span class="port-dot" style="background:${SIGNAL_COLORS[signalOf(conn.connector)]}"></span>${conn.connector}</span>
+      </td>
+      <td><input class="f-label" value="${escapeHtml(conn.label)}" placeholder="e.g. FOH to SL snake"></td>
+      <td><input class="f-length" type="number" min="0" step="0.5" value="${conn.length}" placeholder="m"></td>
+      <td><input class="f-qty" type="number" min="1" step="1" value="${conn.qty}"></td>
+      <td><input class="f-notes" value="${escapeHtml(conn.notes)}" placeholder="e.g. via roof void"></td>
+      <td><button class="ghost danger btn-del-conn" title="Remove this connection">✕</button></td>
+    </tr>
+  `).join('');
+
+  wrap.innerHTML = `
+    <table class="plan-table">
+      <thead><tr>
+        <th>From</th><th>To</th><th>Connector</th><th>Cable Label</th><th>Length (m)</th><th>Qty</th><th>Notes</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  wrap.querySelectorAll('tbody tr').forEach(tr=>{
+    const conn = state.connections.find(c=>c.id === tr.dataset.id);
+    tr.querySelector('.f-label').addEventListener('input', e=>{ conn.label = e.target.value; saveState(); updateConnectionLines(); });
+    tr.querySelector('.f-length').addEventListener('input', e=>{ conn.length = e.target.value; saveState(); renderTotals(); });
+    tr.querySelector('.f-qty').addEventListener('input', e=>{ conn.qty = parseInt(e.target.value)||1; saveState(); renderTotals(); });
+    tr.querySelector('.f-notes').addEventListener('input', e=>{ conn.notes = e.target.value; saveState(); });
+    tr.querySelector('.btn-del-conn').addEventListener('click', ()=>{
+      showConfirm('Remove this connection' + (conn.label ? ` ("${conn.label}")` : '') + '?', ()=>{
+        state.connections = state.connections.filter(c=>c.id !== conn.id);
+        saveState();
+        renderPlan();
+        updateConnectionLines();
+        document.getElementById('connCount').textContent = state.connections.length;
+      });
+    });
+  });
+
+  renderTotals();
+}
+
+function renderTotals(){
+  const totalsWrap = document.getElementById('totalsWrap');
+  const byType = {};
+  let totalLen = 0, totalCables = 0;
+  state.connections.forEach(c=>{
+    const len = parseFloat(c.length) || 0;
+    const qty = parseInt(c.qty) || 1;
+    byType[c.connector] = (byType[c.connector]||0) + len*qty;
+    totalLen += len*qty;
+    totalCables += qty;
+  });
+  let html = `
+    <div class="total-card"><div class="n">${totalCables}</div><div class="l">Total Cables</div></div>
+    <div class="total-card"><div class="n">${totalLen.toFixed(1)}m</div><div class="l">Total Length</div></div>
+  `;
+  Object.entries(byType).forEach(([type,len])=>{
+    html += `<div class="total-card"><div class="n">${len.toFixed(1)}m</div><div class="l">${type}</div></div>`;
+  });
+  totalsWrap.innerHTML = html;
+}
+
+/* =========================================================
+   PDF EXPORT
+========================================================= */
+document.getElementById('btnExportSchematic').addEventListener('click', async ()=>{
+  const canvas = document.getElementById('schematicCanvas');
+  const btn = document.getElementById('btnExportSchematic');
+  btn.disabled = true; btn.textContent = 'Exporting…';
+  try{
+    // trim capture area to bounding box of content
+    const items = state.canvasItems;
+    let maxX = 900, maxY = 600;
+    items.forEach(i=>{ maxX = Math.max(maxX, i.x + 220); maxY = Math.max(maxY, i.y + 140); });
+    const shot = await html2canvas(canvas, { backgroundColor:'#14171A', width:maxX, height:maxY, scale:2 });
+    const imgData = shot.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:'landscape', unit:'pt', format:'a3' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+
+    pdf.setFillColor(20,23,26);
+    pdf.rect(0,0,pageW,pageH,'F');
+    pdf.setTextColor(232,163,61);
+    pdf.setFont('helvetica','bold');
+    pdf.setFontSize(16);
+    pdf.text(state.name || 'Untitled Project', 30, 34);
+    pdf.setFontSize(9);
+    pdf.setTextColor(180,185,190);
+    pdf.setFont('helvetica','normal');
+    pdf.text(`Venue: ${state.venue || '—'}    Date: ${state.date || '—'}    Exported: ${new Date().toLocaleDateString()}`, 30, 50);
+
+    const imgW = shot.width, imgH = shot.height;
+    const availW = pageW - 60, availH = pageH - 90;
+    const ratio = Math.min(availW/imgW, availH/imgH);
+    const drawW = imgW*ratio, drawH = imgH*ratio;
+    pdf.addImage(imgData,'PNG', 30, 66, drawW, drawH);
+
+    pdf.save((state.name || 'schematic').replace(/\s+/g,'_') + '_schematic.pdf');
+  }catch(err){
+    showToast('Export failed: ' + err.message);
+  }
+  btn.disabled = false; btn.textContent = 'Export Schematic → PDF';
+});
+
+document.getElementById('btnExportPlan').addEventListener('click', ()=>{
+  if(state.connections.length === 0){ showToast('No connections to export yet — build your schematic first.'); return; }
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(16);
+  pdf.text(state.name || 'Untitled Project', 30, 34);
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(90,90,90);
+  pdf.text(`Venue: ${state.venue || '—'}    Date: ${state.date || '—'}    Exported: ${new Date().toLocaleDateString()}`, 30, 50);
+
+  const body = state.connections.map(c=>{
+    const fromItem = state.canvasItems.find(i=>i.id===c.fromItem);
+    const toItem = state.canvasItems.find(i=>i.id===c.toItem);
+    const fromPort = fromItem ? fromItem.ports.find(p=>p.id===c.fromPort) : null;
+    const toPort = toItem ? toItem.ports.find(p=>p.id===c.toPort) : null;
+    return [
+      fromItem ? `${fromItem.name} / ${fromPort?fromPort.name:'?'}` : '—',
+      toItem ? `${toItem.name} / ${toPort?toPort.name:'?'}` : '—',
+      c.connector,
+      c.label || '',
+      c.length ? `${c.length}m` : '',
+      c.qty || 1,
+      c.notes || ''
+    ];
+  });
+
+  pdf.autoTable({
+    startY: 64,
+    head: [['From','To','Connector','Label','Length','Qty','Notes']],
+    body,
+    styles:{ fontSize:8, cellPadding:4 },
+    headStyles:{ fillColor:[35,40,44], textColor:[255,255,255] },
+    alternateRowStyles:{ fillColor:[245,245,245] },
+  });
+
+  let totalLen = 0, totalCables = 0;
+  const byType = {};
+  state.connections.forEach(c=>{
+    const len = parseFloat(c.length)||0, qty = parseInt(c.qty)||1;
+    totalLen += len*qty; totalCables += qty;
+    byType[c.connector] = (byType[c.connector]||0) + len*qty;
+  });
+  const finalY = pdf.lastAutoTable.finalY + 20;
+  pdf.setFontSize(10);
+  pdf.setTextColor(0,0,0);
+  pdf.text(`Total cables: ${totalCables}    Total length: ${totalLen.toFixed(1)}m`, 30, finalY);
+  let ty = finalY + 16;
+  Object.entries(byType).forEach(([type,len])=>{
+    pdf.setFontSize(9);
+    pdf.text(`${type}: ${len.toFixed(1)}m`, 30, ty);
+    ty += 14;
+  });
+
+  pdf.save((state.name || 'cable_plan').replace(/\s+/g,'_') + '_cable_plan.pdf');
+});
+
+/* =========================================================
+   INIT
+========================================================= */
+function renderAll(){
+  syncHeaderFields();
+  renderLibrary();
+  renderCanvas();
+  renderPlan();
+}
+initProject();
+renderAll();
+window.addEventListener('resize', updateConnectionLines);
+</script>
+</body>
+</html>
